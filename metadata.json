@@ -1,0 +1,6 @@
+{
+  "name": "Heikin-Ashi & Chandelier Exit Quantitative Trading Studio",
+  "description": "Multi-timeframe tick-to-candle pipeline, Heikin-Ashi transformation, TradingView-calibrated Chandelier Exit indicator, step-by-step mathematical inspector, and Python quantitative library.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
