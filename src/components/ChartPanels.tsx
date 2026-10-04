@@ -12,6 +12,7 @@ interface ChartPanelsProps {
   bars: ChandelierBar[];
   trades: Trade[];
   config: StrategyConfig;
+  setConfig?: React.Dispatch<React.SetStateAction<StrategyConfig>>;
   selectedCandleIndex: number;
   onSelectCandle: (index: number) => void;
   onOpenStepInspector: (index: number) => void;
@@ -22,14 +23,16 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
   bars,
   trades,
   config,
+  setConfig,
   selectedCandleIndex,
   onSelectCandle,
   onOpenStepInspector,
 }) => {
-  // Panel visibility toggles
+  // Panel visibility toggles (6 Panels total)
   const [showTicks, setShowTicks] = useState(true);
   const [showRealOhlc, setShowRealOhlc] = useState(true);
   const [showHeikinAshi, setShowHeikinAshi] = useState(true);
+  const [showExtremums, setShowExtremums] = useState(true);
   const [showAtr, setShowAtr] = useState(true);
   const [showEquity, setShowEquity] = useState(true);
 
@@ -158,20 +161,28 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
               3. Heikin Ashi + CE
             </button>
             <button
+              onClick={() => setShowExtremums(prev => !prev)}
+              className={`px-2 py-1 text-[11px] rounded transition-colors ${
+                showExtremums ? 'bg-[#1b283e] text-cyan-400 font-medium' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              4. Extremums
+            </button>
+            <button
               onClick={() => setShowAtr(prev => !prev)}
               className={`px-2 py-1 text-[11px] rounded transition-colors ${
                 showAtr ? 'bg-[#1b283e] text-amber-400 font-medium' : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              4. ATR
+              5. ATR
             </button>
             <button
               onClick={() => setShowEquity(prev => !prev)}
               className={`px-2 py-1 text-[11px] rounded transition-colors ${
-                showEquity ? 'bg-[#1b283e] text-emerald-300 font-medium' : 'text-slate-500 hover:text-slate-300'
+                showEquity ? 'bg-[#1b283e] text-indigo-300 font-medium' : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              5. Equity
+              6. Equity
             </button>
           </div>
 
@@ -307,14 +318,195 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
           </div>
         )}
 
-        {/* PANEL 4: WILDER'S ATR INDICATOR */}
+        {/* PANEL 4: EXTREMUMS ENGINE & CHANDELIER BASIS */}
+        {showExtremums && (
+          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-3 shadow-md space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b] flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
+                <span className="font-semibold text-slate-100 text-xs tracking-wide">
+                  PANEL 4 — EXTREMUMS ENGINE &amp; CHANDELIER BASIS
+                </span>
+                <span className="text-cyan-400 text-[11px] font-mono">
+                  {config.useCloseForExtremums ? 'Close Extremums (Wicks Ignored)' : 'High/Low Extremums (Wicks Included)'}
+                </span>
+              </div>
+
+              {/* Close Price for Extremums Toggle Switch */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400">Use Close Price for Extremums:</span>
+                <button
+                  onClick={() => {
+                    if (setConfig) {
+                      setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }));
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition-all border ${
+                    config.useCloseForExtremums
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm shadow-cyan-900/30'
+                      : 'bg-[#131d2e] text-slate-400 border-[#273752] hover:text-slate-200'
+                  }`}
+                  title="When ON: highest/lowest uses Close instead of wicks. When OFF: wicks are included."
+                >
+                  {config.useCloseForExtremums ? '✓ ON (Close Only · Wicks Ignored)' : '✗ OFF (Wicks Included)'}
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Formula Radio Buttons Selector */}
+            <div className="bg-[#0b101b] border border-[#1d283a] rounded-lg p-2.5 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-300 font-medium">
+                <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span>Select Extremum Formula:</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  {
+                    id: 'close_extremum',
+                    label: 'F1: Close Extremums (User Given Formula)',
+                    desc: 'max/min Close vs High/Low wicks',
+                  },
+                  {
+                    id: 'range_ma_crossover',
+                    label: 'F2: Range MA Crossover',
+                    desc: 'Dynamic rolling channel vs Moving Average',
+                  },
+                  {
+                    id: 'ma_plus_crest',
+                    label: 'F3: MA+ Crest / Trough',
+                    desc: 'Inflection wave peaks & valleys along smoothed MA',
+                  },
+                  {
+                    id: 'structural_sr',
+                    label: 'F4: Structural Pivot S/R',
+                    desc: '3-bar fractal swing pivots support & resistance',
+                  },
+                ].map(f => (
+                  <label
+                    key={f.id}
+                    onClick={() => {
+                      if (setConfig) {
+                        setConfig(prev => ({ ...prev, extremumFormula: f.id as any }));
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer border transition-colors ${
+                      config.extremumFormula === f.id
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-semibold shadow-sm'
+                        : 'bg-[#131d2e] border-[#223049] text-slate-400 hover:text-slate-200 hover:bg-[#18253a]'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="extremum_formula_panel4"
+                      checked={config.extremumFormula === f.id}
+                      onChange={() => {
+                        if (setConfig) {
+                          setConfig(prev => ({ ...prev, extremumFormula: f.id as any }));
+                        }
+                      }}
+                      className="accent-cyan-400 w-3 h-3 cursor-pointer"
+                    />
+                    <span className="text-[11px]">{f.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Mathematical Formula & Example Card */}
+            <div className="bg-[#111a2c]/90 border border-[#202e47] rounded-lg p-2.5 text-[11px] font-mono text-slate-300 space-y-2">
+              <div className="flex items-center justify-between text-slate-400 border-b border-[#1f2b42] pb-1">
+                <span className="text-cyan-400 font-semibold">
+                  {config.extremumFormula === 'close_extremum' && 'FORMULA 1: “Use Close Price for Extremums” vs Candle Wicks'}
+                  {config.extremumFormula === 'range_ma_crossover' && 'FORMULA 2: Range MA Crossover Dynamic Trend Channel'}
+                  {config.extremumFormula === 'ma_plus_crest' && 'FORMULA 3: Moving Average Crest & Trough Inflection Waves'}
+                  {config.extremumFormula === 'structural_sr' && 'FORMULA 4: Structural Swing Pivot Support & Resistance Bands'}
+                </span>
+                <span className="text-slate-500">
+                  Lookback Period: {config.atrPeriod} bars · ATR Mult: {config.atrMultiplier}x
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-0.5">
+                <div className="bg-[#0b101b] p-2 rounded border border-[#1b263b] space-y-1">
+                  <div className="text-[10px] text-slate-400 font-medium">Mathematical Definition &amp; Simple Example:</div>
+                  <div className="text-slate-200">
+                    {config.useCloseForExtremums ? (
+                      <span className="text-cyan-300">
+                        Highest = max(Close_1..Close_{config.atrPeriod}) &amp; Lowest = min(Close_1..Close_{config.atrPeriod}) <span className="text-emerald-400 font-bold">[Wicks Ignored]</span>
+                      </span>
+                    ) : (
+                      <span className="text-amber-300">
+                        Highest = max(High_1..High_{config.atrPeriod}) &amp; Lowest = min(Low_1..Low_{config.atrPeriod}) <span className="text-slate-400">[Wicks Included]</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-400 pt-0.5">
+                    Example (High=105, Close=101, Low=98): <span className="text-cyan-300 font-semibold">{config.useCloseForExtremums ? 'Highest = 101 (ON)' : 'Highest = 105 (OFF)'}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Chandelier Starting Point:{' '}
+                    <span className="text-emerald-300">
+                      {config.useCloseForExtremums
+                        ? `LongStop = HighestClose - ATR×${config.atrMultiplier}`
+                        : `LongStop = HighestHigh - ATR×${config.atrMultiplier}`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0b101b] p-2 rounded border border-[#1b263b] space-y-1">
+                  <div className="text-[10px] text-slate-400 font-medium">
+                    Current Candle ({activeBar?.timeStr || 'N/A'}) Live Extremum Values:
+                  </div>
+                  <div className="text-slate-200 flex items-center justify-between">
+                    <span>
+                      Highest Close: <span className="text-cyan-300 font-bold">{activeBar?.extremum.highestClose.toFixed(2)}</span> vs High: <span className="text-amber-300">{activeBar?.extremum.highestHigh.toFixed(2)}</span>
+                    </span>
+                    <span className="text-[10px] text-amber-400">
+                      Wick Δ: +{((activeBar?.extremum.highestHigh || 0) - (activeBar?.extremum.highestClose || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-slate-200 flex items-center justify-between">
+                    <span>
+                      Lowest Close: <span className="text-cyan-300 font-bold">{activeBar?.extremum.lowestClose.toFixed(2)}</span> vs Low: <span className="text-amber-300">{activeBar?.extremum.lowestLow.toFixed(2)}</span>
+                    </span>
+                    <span className="text-[10px] text-amber-400">
+                      Wick Δ: -{((activeBar?.extremum.lowestClose || 0) - (activeBar?.extremum.lowestLow || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 pt-0.5">
+                    Active Anchor: <span className="text-sky-300 font-semibold">{activeBar?.highest.toFixed(2)}</span> · Raw Long Stop: <span className="text-emerald-400">{activeBar?.longStopRaw.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SVG Plot for Panel 4 */}
+            <ExtremumSvgPanel
+              bars={visibleBars}
+              startIndex={startIndex}
+              config={config}
+              width={chartWidth}
+              plotWidth={plotWidth}
+              paddingX={paddingX}
+              paddingRight={paddingRight}
+              height={230}
+              hoverIndex={hoverIndex}
+              setHoverIndex={setHoverIndex}
+              selectedCandleIndex={selectedCandleIndex}
+              onSelectCandle={onSelectCandle}
+              onOpenStepInspector={onOpenStepInspector}
+            />
+          </div>
+        )}
+
+        {/* PANEL 5: WILDER'S ATR INDICATOR */}
         {showAtr && (
           <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-3 shadow-md">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1e293b]">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
                 <span className="font-semibold text-slate-100 text-xs tracking-wide">
-                  PANEL 4 — AVERAGE TRUE RANGE (ATR)
+                  PANEL 5 — AVERAGE TRUE RANGE (ATR)
                 </span>
                 <span className="text-slate-500 text-[11px]">
                   Wilder's RMA Smoothing (Pine Script ta.rma)
@@ -335,14 +527,14 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
           </div>
         )}
 
-        {/* PANEL 5: CUMULATIVE STRATEGY EQUITY */}
+        {/* PANEL 6: CUMULATIVE STRATEGY EQUITY */}
         {showEquity && (
           <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-3 shadow-md">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1e293b]">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 inline-block"></span>
                 <span className="font-semibold text-slate-100 text-xs tracking-wide">
-                  PANEL 5 — CUMULATIVE STRATEGY EQUITY CURVE
+                  PANEL 6 — CUMULATIVE STRATEGY EQUITY CURVE
                 </span>
                 <span className="text-slate-500 text-[11px]">
                   Walk-forward trade execution on Candle N+1 Real Open
@@ -821,7 +1013,461 @@ const HeikinAshiSvgPanel: React.FC<{
 };
 
 // ----------------------------------------------------------------------------
-// PANEL 4 COMPONENT: ATR SVG
+// PANEL 4 COMPONENT: EXTREMUM SVG PANEL
+// ----------------------------------------------------------------------------
+const ExtremumSvgPanel: React.FC<{
+  bars: ChandelierBar[];
+  startIndex: number;
+  config: StrategyConfig;
+  width: number;
+  plotWidth: number;
+  paddingX: number;
+  paddingRight: number;
+  height: number;
+  hoverIndex: number | null;
+  setHoverIndex: (idx: number | null) => void;
+  selectedCandleIndex: number;
+  onSelectCandle: (index: number) => void;
+  onOpenStepInspector: (index: number) => void;
+}> = ({
+  bars,
+  startIndex,
+  config,
+  width,
+  plotWidth,
+  paddingX,
+  paddingRight,
+  height,
+  hoverIndex,
+  setHoverIndex,
+  selectedCandleIndex,
+  onSelectCandle,
+  onOpenStepInspector,
+}) => {
+  if (bars.length === 0) return null;
+
+  // Determine vertical price bounds across visible extremum series
+  let minP = bars[0].extremum.lowestLow;
+  let maxP = bars[0].extremum.highestHigh;
+
+  for (const b of bars) {
+    if (b.extremum.lowestLow < minP) minP = b.extremum.lowestLow;
+    if (b.extremum.lowestClose < minP) minP = b.extremum.lowestClose;
+    if (b.extremum.prevLow < minP) minP = b.extremum.prevLow;
+    if (b.extremum.maValue < minP) minP = b.extremum.maValue;
+
+    if (b.extremum.highestHigh > maxP) maxP = b.extremum.highestHigh;
+    if (b.extremum.highestClose > maxP) maxP = b.extremum.highestClose;
+    if (b.extremum.prevHigh > maxP) maxP = b.extremum.prevHigh;
+    if (b.extremum.maValue > maxP) maxP = b.extremum.maValue;
+  }
+
+  const rangeP = Math.max(0.5, maxP - minP);
+
+  const getX = (localIdx: number) => {
+    if (bars.length <= 1) return paddingX + plotWidth / 2;
+    return paddingX + (localIdx / (bars.length - 1)) * plotWidth;
+  };
+
+  const getY = (val: number) => {
+    return height - 25 - ((val - minP) / rangeP) * (height - 45);
+  };
+
+  const latestBar = bars[bars.length - 1];
+
+  // Helper series points for Formula 1:
+  const highestClosePoints = bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.highestClose).toFixed(1)}`).join(' ');
+  const lowestClosePoints = bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.lowestClose).toFixed(1)}`).join(' ');
+  const highestHighPoints = bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.highestHigh).toFixed(1)}`).join(' ');
+  const lowestLowPoints = bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.lowestLow).toFixed(1)}`).join(' ');
+  const haClosePoints = bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.haClose).toFixed(1)}`).join(' ');
+
+  // Shaded Wick Ignored Zones for Formula 1:
+  const topWickZonePolygon = [
+    ...bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.highestHigh).toFixed(1)}`),
+    ...[...bars].reverse().map((b, i) => {
+      const origIdx = bars.length - 1 - i;
+      return `${getX(origIdx).toFixed(1)},${getY(b.extremum.highestClose).toFixed(1)}`;
+    }),
+  ].join(' ');
+
+  const bottomWickZonePolygon = [
+    ...bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.lowestClose).toFixed(1)}`),
+    ...[...bars].reverse().map((b, i) => {
+      const origIdx = bars.length - 1 - i;
+      return `${getX(origIdx).toFixed(1)},${getY(b.extremum.lowestLow).toFixed(1)}`;
+    }),
+  ].join(' ');
+
+  // Range MA Channel Polygon for Formula 2:
+  const rangeChannelPolygon = [
+    ...bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.prevHigh).toFixed(1)}`),
+    ...[...bars].reverse().map((b, i) => {
+      const origIdx = bars.length - 1 - i;
+      return `${getX(origIdx).toFixed(1)},${getY(b.extremum.prevLow).toFixed(1)}`;
+    }),
+  ].join(' ');
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full h-auto overflow-visible select-none cursor-crosshair"
+      onMouseLeave={() => setHoverIndex(null)}
+    >
+      {/* Grid lines */}
+      <line x1={paddingX} y1={20} x2={paddingX + plotWidth} y2={20} stroke="#1e293b" strokeDasharray="3 3" />
+      <line x1={paddingX} y1={height / 2} x2={paddingX + plotWidth} y2={height / 2} stroke="#1e293b" strokeDasharray="3 3" />
+      <line x1={paddingX} y1={height - 20} x2={paddingX + plotWidth} y2={height - 20} stroke="#1e293b" />
+
+      {/* Axis Scale labels on right */}
+      <text x={paddingX + plotWidth + 6} y={24} fill="#94a3b8" fontSize={10} fontFamily="monospace">
+        {maxP.toFixed(2)}
+      </text>
+      <text x={paddingX + plotWidth + 6} y={height / 2} fill="#64748b" fontSize={10} fontFamily="monospace">
+        {((maxP + minP) / 2).toFixed(2)}
+      </text>
+      <text x={paddingX + plotWidth + 6} y={height - 22} fill="#94a3b8" fontSize={10} fontFamily="monospace">
+        {minP.toFixed(2)}
+      </text>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* FORMULA 1 RENDERING: CLOSE EXTREMUMS vs HIGH/LOW WICKS            */}
+      {/* ------------------------------------------------------------------ */}
+      {config.extremumFormula === 'close_extremum' && (
+        <g>
+          {/* Shaded Wick Extension Ignored Zones */}
+          <polygon points={topWickZonePolygon} fill="rgba(245, 158, 11, 0.12)" />
+          <polygon points={bottomWickZonePolygon} fill="rgba(245, 158, 11, 0.12)" />
+
+          {/* Wick Extreme Boundaries (Amber Dashed) */}
+          <polyline
+            points={highestHighPoints}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth={1.2}
+            strokeDasharray="4 3"
+            opacity={0.8}
+          />
+          <polyline
+            points={lowestLowPoints}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth={1.2}
+            strokeDasharray="4 3"
+            opacity={0.8}
+          />
+
+          {/* Close Price Extreme Boundaries (Cyan Solid) */}
+          <polyline
+            points={highestClosePoints}
+            fill="none"
+            stroke="#06b6d4"
+            strokeWidth={2}
+          />
+          <polyline
+            points={lowestClosePoints}
+            fill="none"
+            stroke="#06b6d4"
+            strokeWidth={2}
+          />
+
+          {/* Subtle Candle Close Trace Line */}
+          <polyline
+            points={haClosePoints}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth={1}
+            opacity={0.4}
+          />
+
+          {/* Right boundary tags for Formula 1 */}
+          <text x={paddingX + plotWidth + 6} y={getY(latestBar.extremum.highestHigh) + 3} fill="#f59e0b" fontSize={9} fontFamily="monospace">
+            WickH: {latestBar.extremum.highestHigh.toFixed(1)}
+          </text>
+          <text x={paddingX + plotWidth + 6} y={getY(latestBar.extremum.highestClose) + 3} fill="#06b6d4" fontSize={9} fontFamily="monospace" fontWeight="bold">
+            CloseH: {latestBar.extremum.highestClose.toFixed(1)}
+          </text>
+          <text x={paddingX + plotWidth + 6} y={getY(latestBar.extremum.lowestClose) + 3} fill="#06b6d4" fontSize={9} fontFamily="monospace" fontWeight="bold">
+            CloseL: {latestBar.extremum.lowestClose.toFixed(1)}
+          </text>
+          <text x={paddingX + plotWidth + 6} y={getY(latestBar.extremum.lowestLow) + 3} fill="#f59e0b" fontSize={9} fontFamily="monospace">
+            WickL: {latestBar.extremum.lowestLow.toFixed(1)}
+          </text>
+
+          {/* Visual Legend in top left of SVG */}
+          <g transform={`translate(${paddingX + 10}, 18)`}>
+            <rect x={0} y={0} width={380} height={20} fill="#0f172a" fillOpacity={0.85} rx={4} stroke="#1e293b" />
+            <line x1={8} y1={10} x2={24} y2={10} stroke="#06b6d4" strokeWidth={2} />
+            <text x={28} y={13} fill="#06b6d4" fontSize={10} fontFamily="monospace">Highest/Lowest Close (Wicks Ignored)</text>
+
+            <line x1={220} y1={10} x2={236} y2={10} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="3 2" />
+            <text x={240} y={13} fill="#f59e0b" fontSize={10} fontFamily="monospace">High/Low Wicks (Wicks Zone)</text>
+          </g>
+        </g>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* FORMULA 2 RENDERING: RANGE MA CROSSOVER DYNAMIC CHANNEL            */}
+      {/* ------------------------------------------------------------------ */}
+      {config.extremumFormula === 'range_ma_crossover' && (
+        <g>
+          {/* Shaded Range Envelope */}
+          <polygon points={rangeChannelPolygon} fill="rgba(99, 102, 241, 0.12)" />
+
+          {/* Upper & Lower Rolling Range Series */}
+          <polyline
+            points={bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.prevHigh).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="#818cf8"
+            strokeWidth={1.5}
+            strokeDasharray="3 2"
+          />
+          <polyline
+            points={bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.prevLow).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="#818cf8"
+            strokeWidth={1.5}
+            strokeDasharray="3 2"
+          />
+
+          {/* Moving Average Line with Dynamic Trend Gradient / Segments */}
+          {bars.map((b, i) => {
+            if (i === 0) return null;
+            const x1 = getX(i - 1);
+            const y1 = getY(bars[i - 1].extremum.maValue);
+            const x2 = getX(i);
+            const y2 = getY(b.extremum.maValue);
+            const strokeColor = b.extremum.maTrendColor === 'green' ? '#10b981' : '#f43f5e';
+            return (
+              <line key={`ma-seg-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke={strokeColor} strokeWidth={2.2} />
+            );
+          })}
+
+          {/* Crossover Triangles */}
+          {bars.map((b, i) => {
+            const x = getX(i);
+            if (b.extremum.rangeCrossLong) {
+              const y = getY(b.extremum.prevLow) + 12;
+              return (
+                <polygon
+                  key={`cross-long-${i}`}
+                  points={`${x},${y - 8} ${x - 5},${y + 2} ${x + 5},${y + 2}`}
+                  fill="#10b981"
+                  stroke="#ffffff"
+                  strokeWidth={0.5}
+                />
+              );
+            }
+            if (b.extremum.rangeCrossShort) {
+              const y = getY(b.extremum.prevHigh) - 12;
+              return (
+                <polygon
+                  key={`cross-short-${i}`}
+                  points={`${x},${y + 8} ${x - 5},${y - 2} ${x + 5},${y - 2}`}
+                  fill="#f43f5e"
+                  stroke="#ffffff"
+                  strokeWidth={0.5}
+                />
+              );
+            }
+            return null;
+          })}
+
+          {/* Legend */}
+          <g transform={`translate(${paddingX + 10}, 18)`}>
+            <rect x={0} y={0} width={360} height={20} fill="#0f172a" fillOpacity={0.85} rx={4} stroke="#1e293b" />
+            <line x1={8} y1={10} x2={24} y2={10} stroke="#10b981" strokeWidth={2} />
+            <text x={28} y={13} fill="#10b981" fontSize={10} fontFamily="monospace">MA({config.maType},{config.maLength}) Rising</text>
+
+            <line x1={155} y1={10} x2={171} y2={10} stroke="#f43f5e" strokeWidth={2} />
+            <text x={175} y={13} fill="#f43f5e" fontSize={10} fontFamily="monospace">MA Falling</text>
+
+            <line x1={255} y1={10} x2={271} y2={10} stroke="#818cf8" strokeWidth={1.5} strokeDasharray="3 2" />
+            <text x={275} y={13} fill="#818cf8" fontSize={10} fontFamily="monospace">Range Channel</text>
+          </g>
+        </g>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* FORMULA 3 RENDERING: MA+ CREST & TROUGH INFLECTION WAVES           */}
+      {/* ------------------------------------------------------------------ */}
+      {config.extremumFormula === 'ma_plus_crest' && (
+        <g>
+          {/* Smoothed Trajectory Curve */}
+          <polyline
+            points={bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.extremum.maValue).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth={2}
+          />
+
+          {/* Crest Peaks & Trough Valleys Markers */}
+          {bars.map((b, i) => {
+            const x = getX(i);
+            const y = getY(b.extremum.maValue);
+
+            if (b.extremum.isCrest) {
+              return (
+                <g key={`crest-${i}`}>
+                  <polygon
+                    points={`${x},${y - 8} ${x + 6},${y} ${x},${y + 8} ${x - 6},${y}`}
+                    fill="#fbbf24"
+                    stroke="#ffffff"
+                    strokeWidth={1}
+                  />
+                  <text x={x} y={y - 12} fill="#fbbf24" fontSize={9} textAnchor="middle" fontFamily="monospace">
+                    Peak {b.extremum.maValue.toFixed(1)}
+                  </text>
+                </g>
+              );
+            }
+            if (b.extremum.isTrough) {
+              return (
+                <g key={`trough-${i}`}>
+                  <polygon
+                    points={`${x},${y - 8} ${x + 6},${y} ${x},${y + 8} ${x - 6},${y}`}
+                    fill="#2dd4bf"
+                    stroke="#ffffff"
+                    strokeWidth={1}
+                  />
+                  <text x={x} y={y + 18} fill="#2dd4bf" fontSize={9} textAnchor="middle" fontFamily="monospace">
+                    Valley {b.extremum.maValue.toFixed(1)}
+                  </text>
+                </g>
+              );
+            }
+            return null;
+          })}
+
+          {/* Dotted Anchor Projections */}
+          <line
+            x1={paddingX}
+            y1={getY(latestBar.highest)}
+            x2={paddingX + plotWidth}
+            y2={getY(latestBar.highest)}
+            stroke="#fbbf24"
+            strokeDasharray="4 4"
+            strokeWidth={1.2}
+          />
+          <line
+            x1={paddingX}
+            y1={getY(latestBar.lowest)}
+            x2={paddingX + plotWidth}
+            y2={getY(latestBar.lowest)}
+            stroke="#2dd4bf"
+            strokeDasharray="4 4"
+            strokeWidth={1.2}
+          />
+
+          {/* Legend */}
+          <g transform={`translate(${paddingX + 10}, 18)`}>
+            <rect x={0} y={0} width={340} height={20} fill="#0f172a" fillOpacity={0.85} rx={4} stroke="#1e293b" />
+            <polygon points="15,6 20,10 15,14 10,10" fill="#fbbf24" />
+            <text x={26} y={13} fill="#fbbf24" fontSize={10} fontFamily="monospace">Crest Peak (Resistance)</text>
+
+            <polygon points="180,6 185,10 180,14 175,10" fill="#2dd4bf" />
+            <text x={191} y={13} fill="#2dd4bf" fontSize={10} fontFamily="monospace">Trough Valley (Support)</text>
+          </g>
+        </g>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* FORMULA 4 RENDERING: STRUCTURAL SWING PIVOT SUPPORT & RESISTANCE   */}
+      {/* ------------------------------------------------------------------ */}
+      {config.extremumFormula === 'structural_sr' && (
+        <g>
+          {/* Stepped Support & Resistance Channel */}
+          <polyline
+            points={bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.highest).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="#f43f5e"
+            strokeWidth={1.8}
+          />
+          <polyline
+            points={bars.map((b, i) => `${getX(i).toFixed(1)},${getY(b.lowest).toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="#10b981"
+            strokeWidth={1.8}
+          />
+
+          {/* Pivot High / Low Candle Markers */}
+          {bars.map((b, i) => {
+            const x = getX(i);
+            return (
+              <g key={`pivot-${i}`}>
+                {b.extremum.isPivotHigh && (
+                  <g>
+                    <circle cx={x} cy={getY(b.realHigh) - 6} r={4} fill="#f43f5e" />
+                    <text x={x} y={getY(b.realHigh) - 12} fill="#f43f5e" fontSize={8} textAnchor="middle" fontFamily="monospace">
+                      H
+                    </text>
+                  </g>
+                )}
+                {b.extremum.isPivotLow && (
+                  <g>
+                    <circle cx={x} cy={getY(b.realLow) + 6} r={4} fill="#10b981" />
+                    <text x={x} y={getY(b.realLow) + 16} fill="#10b981" fontSize={8} textAnchor="middle" fontFamily="monospace">
+                      L
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Legend */}
+          <g transform={`translate(${paddingX + 10}, 18)`}>
+            <rect x={0} y={0} width={340} height={20} fill="#0f172a" fillOpacity={0.85} rx={4} stroke="#1e293b" />
+            <line x1={8} y1={10} x2={24} y2={10} stroke="#f43f5e" strokeWidth={2} />
+            <text x={28} y={13} fill="#f43f5e" fontSize={10} fontFamily="monospace">Structural Pivot Resistance</text>
+
+            <line x1={180} y1={10} x2={196} y2={10} stroke="#10b981" strokeWidth={2} />
+            <text x={200} y={13} fill="#10b981" fontSize={10} fontFamily="monospace">Structural Pivot Support</text>
+          </g>
+        </g>
+      )}
+
+      {/* Interactive Bar Hover Rectangles */}
+      {bars.map((b, i) => {
+        const x = getX(i);
+        const candleWidth = Math.max(3, plotWidth / bars.length);
+        const isHovered = hoverIndex === startIndex + i;
+        const isSelected = selectedCandleIndex === startIndex + i;
+
+        return (
+          <g key={`hitbox-${i}`}>
+            <rect
+              x={x - candleWidth / 2}
+              y={10}
+              width={candleWidth}
+              height={height - 20}
+              fill={isSelected ? 'rgba(6, 182, 212, 0.15)' : 'transparent'}
+              className="cursor-pointer hover:fill-white/5 transition-colors"
+              onMouseEnter={() => setHoverIndex(startIndex + i)}
+              onClick={() => onSelectCandle(startIndex + i)}
+            />
+          </g>
+        );
+      })}
+
+      {/* Synchronized Hover Crosshair Line */}
+      {hoverIndex !== null && hoverIndex >= startIndex && hoverIndex < startIndex + bars.length && (
+        <line
+          x1={getX(hoverIndex - startIndex)}
+          y1={15}
+          x2={getX(hoverIndex - startIndex)}
+          y2={height - 20}
+          stroke="#06b6d4"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+        />
+      )}
+    </svg>
+  );
+};
+
+// ----------------------------------------------------------------------------
+// PANEL 5 COMPONENT: ATR SVG
 // ----------------------------------------------------------------------------
 const AtrSvgPanel: React.FC<{
   bars: ChandelierBar[];

@@ -277,6 +277,131 @@ export const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
           </div>
         </div>
 
+        {/* Extremums Engine & Formula Selection */}
+        <div className="space-y-2.5 pt-2 border-t border-[#1e293b]">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
+              Extremums Engine
+            </span>
+            <button
+              onClick={() => setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }))}
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-all border ${
+                config.useCloseForExtremums
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                  : 'bg-[#131d2e] text-slate-400 border-[#273752]'
+              }`}
+              title="When ON: highest/lowest uses Close instead of wicks. When OFF: wicks are included."
+            >
+              Close Extremum: {config.useCloseForExtremums ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          <div className="text-[11px] text-slate-400">
+            {config.useCloseForExtremums ? (
+              <span className="text-cyan-300">
+                Wicks ignored: Highest = max(Close), Lowest = min(Close)
+              </span>
+            ) : (
+              <span className="text-amber-300">
+                Wicks included: Highest = max(High), Lowest = min(Low)
+              </span>
+            )}
+          </div>
+
+          {/* 4 Radio Buttons for Formulas */}
+          <div className="space-y-1">
+            {[
+              {
+                id: 'close_extremum',
+                title: 'F1: Close Extremums (User Formula)',
+                sub: 'max/min of Close vs High/Low wicks',
+              },
+              {
+                id: 'range_ma_crossover',
+                title: 'F2: Range MA Crossover',
+                sub: 'Dynamic rolling envelope vs Moving Average',
+              },
+              {
+                id: 'ma_plus_crest',
+                title: 'F3: MA+ Crest / Trough',
+                sub: 'Inflection wave peaks & valleys along smoothed MA',
+              },
+              {
+                id: 'structural_sr',
+                title: 'F4: Structural Pivot S/R',
+                sub: '3-bar fractal swing pivots support & resistance',
+              },
+            ].map(f => (
+              <label
+                key={f.id}
+                onClick={() => setConfig(prev => ({ ...prev, extremumFormula: f.id as any }))}
+                className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                  config.extremumFormula === f.id
+                    ? 'bg-cyan-500/15 border-cyan-400 text-cyan-200'
+                    : 'bg-[#131d2e] border-[#223049] text-slate-400 hover:text-slate-200 hover:bg-[#18253a]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="sidebar_extremum_radio"
+                  checked={config.extremumFormula === f.id}
+                  onChange={() => setConfig(prev => ({ ...prev, extremumFormula: f.id as any }))}
+                  className="accent-cyan-400 mt-0.5 cursor-pointer"
+                />
+                <div>
+                  <div className="font-medium text-slate-200 text-xs">{f.title}</div>
+                  <div className="text-[10px] text-slate-500">{f.sub}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* Additional Moving Average Controls if F2 or F3 selected */}
+          {(config.extremumFormula === 'range_ma_crossover' || config.extremumFormula === 'ma_plus_crest') && (
+            <div className="p-2 bg-[#101827] rounded border border-[#1e293b] space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MA Smoothing Type:</span>
+                <select
+                  value={config.maType}
+                  onChange={(e) => setConfig(prev => ({ ...prev, maType: e.target.value as any }))}
+                  className="bg-[#131d2e] border border-[#273752] rounded px-2 py-0.5 text-slate-200 font-mono text-xs"
+                >
+                  <option value="EMA">EMA</option>
+                  <option value="SMA">SMA</option>
+                  <option value="WMA">WMA</option>
+                  <option value="HMA">HMA (Hull)</option>
+                  <option value="ZLEMA">ZLEMA</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MA Length:</span>
+                <input
+                  type="number"
+                  min={3}
+                  max={200}
+                  value={config.maLength}
+                  onChange={(e) => setConfig(prev => ({ ...prev, maLength: Math.max(3, parseInt(e.target.value) || 20) }))}
+                  className="bg-[#131d2e] border border-[#273752] rounded px-2 py-0.5 text-slate-200 font-mono w-16 text-right text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Channel Lookback:</span>
+                <input
+                  type="number"
+                  min={2}
+                  max={50}
+                  value={config.extremumLookback}
+                  onChange={(e) => setConfig(prev => ({ ...prev, extremumLookback: Math.max(2, parseInt(e.target.value) || 5) }))}
+                  className="bg-[#131d2e] border border-[#273752] rounded px-2 py-0.5 text-slate-200 font-mono w-16 text-right text-xs"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Execution Rule */}
         <div className="space-y-2 pt-2 border-t border-[#1e293b]">
           <span className="text-slate-400 block font-medium">Order Execution Rule</span>

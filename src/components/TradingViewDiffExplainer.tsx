@@ -210,6 +210,87 @@ export const TradingViewDiffExplainer: React.FC<TradingViewDiffExplainerProps> =
             </p>
           </div>
         </div>
+
+        {/* DIFF 5: USE CLOSE PRICE FOR EXTREMUMS (TRADINGVIEW INPUT OPTION) */}
+        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#1e293b] pb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs">
+                DIFF 5
+              </span>
+              <h3 className="font-semibold text-slate-100 text-sm">
+                The "Use Close Price for Extremums" Parameter in TradingView Pine Script
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 text-xs">Toggle Mode:</span>
+              <button
+                onClick={() => setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }))}
+                className={`px-2.5 py-1 rounded text-xs font-mono font-semibold transition-all border ${
+                  config.useCloseForExtremums
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                    : 'bg-[#131d2e] text-slate-400 border-[#273752]'
+                }`}
+              >
+                Use Close Price: {config.useCloseForExtremums ? 'ON (Wicks Ignored)' : 'OFF (Wicks Included)'}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 leading-relaxed">
+            <p className="text-slate-300">
+              In TradingView's official Chandelier Exit indicator by EverGet, there is an input option called{' '}
+              <span className="text-cyan-300 font-mono font-semibold">"Use Close Price for Extremums"</span>.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
+              <div className="p-3 bg-[#131d2e] rounded-lg border border-[#223049] space-y-1.5">
+                <span className="text-amber-400 font-semibold block">Without “Use Close Price” (OFF):</span>
+                <p className="text-slate-400 text-[11px]">
+                  Highest = max(High_1, High_2, ... High_22)
+                  <br />
+                  Lowest = min(Low_1, Low_2, ... Low_22)
+                  <br />
+                  <span className="text-slate-300">Candle wicks are included.</span>
+                </p>
+                <div className="text-[10px] text-slate-500 pt-1 border-t border-[#1e293b]">
+                  LongStop = HighestHigh_22 - ATR_22 × 3
+                  <br />
+                  ShortStop = LowestLow_22 + ATR_22 × 3
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#131d2e] rounded-lg border border-[#223049] space-y-1.5">
+                <span className="text-cyan-400 font-semibold block">With “Use Close Price” (ON):</span>
+                <p className="text-slate-400 text-[11px]">
+                  Highest = max(Close_1, Close_2, ... Close_22)
+                  <br />
+                  Lowest = min(Close_1, Close_2, ... Close_22)
+                  <br />
+                  <span className="text-cyan-300 font-semibold">Wicks are completely ignored!</span>
+                </p>
+                <div className="text-[10px] text-slate-500 pt-1 border-t border-[#1e293b]">
+                  LongStop = HighestClose_22 - ATR_22 × 3
+                  <br />
+                  ShortStop = LowestClose_22 + ATR_22 × 3
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#0b101b] rounded-lg border border-[#1b263b] font-mono text-xs text-slate-300 space-y-1">
+              <div className="text-slate-400 font-medium text-[11px]">Simple Concrete Example:</div>
+              <div>Suppose one candle has: High = 105, Close = 101, Low = 98</div>
+              <div>If Use Close Price = OFF: <span className="text-amber-300">Highest = 105 (Uses Wick High)</span></div>
+              <div>If Use Close Price = ON: <span className="text-cyan-300 font-semibold">Highest = 101 (Uses Candle Close)</span></div>
+            </div>
+
+            <div className="p-3 bg-cyan-950/20 border border-cyan-500/30 rounded-lg text-cyan-200 text-xs">
+              <strong>Why This Matters In Live Trading:</strong>
+              <br />
+              During flash crashes or liquidity sweeps, violent single-tick wicks can shoot up or down without any real volume closing there. When <code className="text-cyan-300 font-bold">Use Close Price = ON</code>, your Chandelier Exit trailing stop will not be distorted by outlier wicks, keeping your stop anchored strictly to confirmed closing price action.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

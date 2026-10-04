@@ -13,6 +13,14 @@ export interface Candle {
   ticks: number;
 }
 
+export type ExtremumFormulaType =
+  | 'close_extremum'
+  | 'range_ma_crossover'
+  | 'ma_plus_crest'
+  | 'structural_sr';
+
+export type MovingAverageType = 'SMA' | 'EMA' | 'WMA' | 'HMA' | 'ZLEMA';
+
 export interface HeikinAshiCandle extends Candle {
   haOpen: number;
   haHigh: number;
@@ -24,11 +32,34 @@ export interface HeikinAshiCandle extends Candle {
   realClose: number;
 }
 
+export interface ExtremumData {
+  highestClose: number;
+  lowestClose: number;
+  highestHigh: number;
+  lowestLow: number;
+  // For Range MA Crossover:
+  prevHigh: number;
+  prevLow: number;
+  maValue: number;
+  maTrendColor: 'green' | 'red';
+  rangeCrossLong: boolean;
+  rangeCrossShort: boolean;
+  // For MA+ Crest/Trough:
+  isCrest: boolean;
+  isTrough: boolean;
+  extremumPointPrice?: number;
+  // For S/R Levels:
+  isPivotHigh: boolean;
+  isPivotLow: boolean;
+}
+
 export interface ChandelierBar extends HeikinAshiCandle {
   tr: number;
   atr: number;
   highest: number;
   lowest: number;
+  highestClose: number;
+  lowestClose: number;
   longStopRaw: number;
   shortStopRaw: number;
   longStop: number;
@@ -39,6 +70,8 @@ export interface ChandelierBar extends HeikinAshiCandle {
   enterLong: boolean;
   enterShort: boolean;
   executionPrice?: number;
+  // Extremum calculations:
+  extremum: ExtremumData;
 }
 
 export interface Trade {
@@ -93,6 +126,12 @@ export interface StrategyConfig {
   contractSize: number;
   slippagePoints: number;
   commissionPerTrade: number;
+  // Extremum formula options:
+  useCloseForExtremums: boolean;
+  extremumFormula: ExtremumFormulaType;
+  maType: MovingAverageType;
+  maLength: number;
+  extremumLookback: number;
 }
 
 export interface StepMathDetail {
@@ -123,14 +162,23 @@ export interface StepMathDetail {
   atr: number;
 
   // Step 4: Chandelier Bands
+  useCloseForExtremums: boolean;
   highestHigh: number;
   lowestLow: number;
+  highestClose: number;
+  lowestClose: number;
+  extremumBasisText: string;
   longStopRaw: number;
   shortStopRaw: number;
   longStopRatchetFormula: string;
   longStop: number;
   shortStopRatchetFormula: string;
   shortStop: number;
+
+  // Step 4B: Selected Extremum Engine Formula Breakdown
+  extremumFormulaName: string;
+  extremumFormulaMath: string;
+  extremumValuesSummary: string;
 
   // Step 5: Direction & Signals
   directionFormula: string;

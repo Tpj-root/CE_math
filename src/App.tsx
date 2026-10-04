@@ -51,6 +51,11 @@ export default function App() {
     contractSize: 1.0,
     slippagePoints: 0.0,
     commissionPerTrade: 0.0,
+    useCloseForExtremums: false,
+    extremumFormula: 'close_extremum',
+    maType: 'EMA',
+    maLength: 20,
+    extremumLookback: 5,
   });
 
   // Ticks Stream State
@@ -93,12 +98,17 @@ export default function App() {
     // Step 3: Heikin-Ashi
     const haCandles = toHeikinAshi(candles);
 
-    // Step 4: Chandelier Exit
+    // Step 4: Chandelier Exit with Extremums Engine
     const ceBars = computeChandelierExit(
       haCandles,
       config.atrPeriod,
       config.atrMultiplier,
-      config.algorithm
+      config.algorithm,
+      config.useCloseForExtremums,
+      config.extremumFormula,
+      config.maType,
+      config.maLength,
+      config.extremumLookback
     );
 
     // Step 5 & 6: Walk-Forward Simulation
@@ -289,6 +299,7 @@ export default function App() {
               bars={bars}
               trades={trades}
               config={config}
+              setConfig={setConfig}
               selectedCandleIndex={selectedCandleIndex}
               onSelectCandle={setSelectedCandleIndex}
               onOpenStepInspector={(idx) => {

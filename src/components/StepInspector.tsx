@@ -32,8 +32,8 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
   const n = bars.length;
 
   const detail: StepMathDetail | null = React.useMemo(() => {
-    return getDetailedStepMath(bars, selectedCandleIndex, config.atrPeriod, config.atrMultiplier);
-  }, [bars, selectedCandleIndex, config.atrPeriod, config.atrMultiplier]);
+    return getDetailedStepMath(bars, selectedCandleIndex, config.atrPeriod, config.atrMultiplier, config);
+  }, [bars, selectedCandleIndex, config]);
 
   if (n === 0 || !detail) {
     return (
@@ -268,29 +268,70 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
           </div>
         </div>
 
-        {/* STEP 4: CHANDELIER BANDS & RATCHET LOGIC */}
+        {/* STEP 4: EXTREMUMS ENGINE & CHANDELIER BANDS */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
+          <div className="flex items-center justify-between border-b border-[#1e293b] pb-2 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono text-xs font-semibold">
+              <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-xs font-semibold">
                 STEP 4
               </span>
-              <span className="text-slate-100 font-semibold text-xs">Chandelier Bands & Ratchet</span>
+              <span className="text-slate-100 font-semibold text-xs">Extremums Engine &amp; Chandelier Ratchet</span>
             </div>
-            <span className="text-indigo-400 font-mono text-xs">Mult: {config.atrMultiplier}x</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
-              <span className="text-slate-400 text-[10px] block">Rolling Highest({config.atrPeriod})</span>
-              <span className="text-slate-200">{detail.highestHigh.toFixed(2)}</span>
-            </div>
-            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
-              <span className="text-slate-400 text-[10px] block">Rolling Lowest({config.atrPeriod})</span>
-              <span className="text-slate-200">{detail.lowestLow.toFixed(2)}</span>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-cyan-400">
+                Formula: {detail.extremumFormulaName.split(':')[0]}
+              </span>
+              <span className="text-slate-500">|</span>
+              <span className="text-indigo-400">Mult: {config.atrMultiplier}x</span>
             </div>
           </div>
 
+          {/* Extremums Engine Rule Explanation */}
+          <div className="p-3 bg-[#131d2e] rounded-lg border border-[#223049] space-y-2 text-xs">
+            <div className="flex items-center justify-between text-slate-300 font-semibold">
+              <span className="text-cyan-300 font-mono">{detail.extremumFormulaName}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                detail.useCloseForExtremums ? 'bg-cyan-500/20 text-cyan-300' : 'bg-amber-500/20 text-amber-300'
+              }`}>
+                {detail.useCloseForExtremums ? 'Use Close Price = ON' : 'Use Close Price = OFF'}
+              </span>
+            </div>
+
+            <p className="text-slate-400 font-mono text-[11px]">
+              {detail.extremumBasisText}
+            </p>
+
+            <div className="p-2 bg-[#0b101b] rounded border border-[#1b263b] font-mono text-[11px] text-slate-300 space-y-1">
+              <div className="text-slate-400 text-[10px]">Mathematical Formula:</div>
+              <div className="text-cyan-300">{detail.extremumFormulaMath}</div>
+              <div className="text-slate-400 text-[10px] pt-1">Extremum Values Breakdown:</div>
+              <div className="text-emerald-300 text-[10px]">{detail.extremumValuesSummary}</div>
+            </div>
+          </div>
+
+          {/* Side by side: Close Extremums vs High/Low Extremums */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
+            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
+              <span className="text-slate-400 text-[10px] block">Rolling Highest Close</span>
+              <span className="text-cyan-300 font-semibold">{detail.highestClose.toFixed(2)}</span>
+            </div>
+            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
+              <span className="text-slate-400 text-[10px] block">Rolling Highest High</span>
+              <span className="text-amber-300 font-semibold">{detail.highestHigh.toFixed(2)}</span>
+              <span className="text-[10px] text-slate-500 block">Wick: +{(detail.highestHigh - detail.highestClose).toFixed(2)}</span>
+            </div>
+            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
+              <span className="text-slate-400 text-[10px] block">Rolling Lowest Close</span>
+              <span className="text-cyan-300 font-semibold">{detail.lowestClose.toFixed(2)}</span>
+            </div>
+            <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
+              <span className="text-slate-400 text-[10px] block">Rolling Lowest Low</span>
+              <span className="text-amber-300 font-semibold">{detail.lowestLow.toFixed(2)}</span>
+              <span className="text-[10px] text-slate-500 block">Wick: -{(detail.lowestClose - detail.lowestLow).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* Ratchet Logic Walkthrough */}
           <div className="space-y-2 text-xs font-mono">
             <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
               <span className="text-emerald-400 text-[10px] block font-semibold">Long Stop Ratchet:</span>

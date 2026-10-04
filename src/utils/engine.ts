@@ -165,13 +165,104 @@ export function toHeikinAshi(candles: Candle[]): HeikinAshiCandle[] {
 }
 
 /**
- * Computes Chandelier Exit over Heikin-Ashi candles.
+ * Moving Average Calculation Functions
+ */
+export function computeSMA(src: number[], len: number): number[] {
+  const res = new Array<number>(src.length);
+  let sum = 0;
+  for (let i = 0; i < src.length; i++) {
+    sum += src[i];
+    if (i >= len) sum -= src[i - len];
+    res[i] = i >= len - 1 ? sum / len : sum / (i + 1);
+  }
+  return res;
+}
+
+export function computeEMA(src: number[], len: number): number[] {
+  const res = new Array<number>(src.length);
+  if (src.length === 0) return res;
+  const k = 2 / (len + 1);
+  res[0] = src[0];
+  for (let i = 1; i < src.length; i++) {
+    res[i] = src[i] * k + res[i - 1] * (1 - k);
+  }
+  return res;
+}
+
+export function computeWMA(src: number[], len: number): number[] {
+  const res = new Array<number>(src.length);
+  const norm = (len * (len + 1)) / 2;
+  for (let i = 0; i < src.length; i++) {
+    if (i < len - 1) {
+      let subNorm = 0;
+      let sum = 0;
+      for (let j = 0; j <= i; j++) {
+        const weight = j + 1;
+        sum += src[j] * weight;
+        subNorm += weight;
+      }
+      res[i] = sum / (subNorm || 1);
+    } else {
+      let sum = 0;
+      for (let j = 0; j < len; j++) {
+        sum += src[i - len + 1 + j] * (j + 1);
+      }
+      res[i] = sum / norm;
+    }
+  }
+  return res;
+}
+
+export function computeHMA(src: number[], len: number): number[] {
+  const halfLen = Math.max(1, Math.round(len / 2));
+  const sqrtLen = Math.max(1, Math.round(Math.sqrt(len)));
+  const wmaHalf = computeWMA(src, halfLen);
+  const wmaFull = computeWMA(src, len);
+  const diff = new Array<number>(src.length);
+  for (let i = 0; i < src.length; i++) {
+    diff[i] = 2 * wmaHalf[i] - wmaFull[i];
+  }
+  return computeWMA(diff, sqrtLen);
+}
+
+export function computeZLEMA(src: number[], len: number): number[] {
+  const lag = Math.max(1, Math.floor(len / 2));
+  const zSrc = new Array<number>(src.length);
+  for (let i = 0; i < src.length; i++) {
+    const lagVal = i >= lag ? src[i - lag] : src[0];
+    zSrc[i] = src[i] + (src[i] - lagVal);
+  }
+  return computeEMA(zSrc, len);
+}
+
+export function computeMA(
+  src: number[],
+  type: import('../types/trading').MovingAverageType,
+  len: number
+): number[] {
+  switch (type) {
+    case 'SMA': return computeSMA(src, len);
+    case 'EMA': return computeEMA(src, len);
+    case 'WMA': return computeWMA(src, len);
+    case 'HMA': return computeHMA(src, len);
+    case 'ZLEMA': return computeZLEMA(src, len);
+    default: return computeEMA(src, len);
+  }
+}
+
+/**
+ * Computes Chandelier Exit over Heikin-Ashi candles with Extremum Engine.
  */
 export function computeChandelierExit(
   ha: HeikinAshiCandle[],
   atrPeriod: number = 22,
   atrMult: number = 3.0,
-  algorithm: 'tradingview' | 'classic' | 'user_original' = 'tradingview'
+  algorithm: 'tradingview' | 'classic' | 'user_original' = 'tradingview',
+  useCloseForExtremums: boolean = false,
+  extremumFormula: import('../types/trading').ExtremumFormulaType = 'close_extremum',
+  maType: import('../types/trading').MovingAverageType = 'EMA',
+  maLength: number = 20,
+  extremumLookback: number = 5
 ): ChandelierBar[] {
   const n = ha.length;
   if (n === 0) return [];
@@ -190,7 +281,6 @@ export function computeChandelierExit(
   // Step 2: Wilder's ATR (TradingView uses ta.rma(tr, length))
   const atr = new Array<number>(n);
   if (algorithm === 'user_original') {
-    // User's original script waited until atrPeriod and seeded with SMA
     for (let i = 0; i < n; i++) {
       if (i < atrPeriod - 1) {
         atr[i] = NaN;
@@ -203,7 +293,6 @@ export function computeChandelierExit(
       }
     }
   } else {
-    // TradingView RMA standard: alpha = 1 / atrPeriod, seeded gracefully
     let runningAtr = tr[0];
     atr[0] = runningAtr;
     for (let i = 1; i < n; i++) {
@@ -212,7 +301,14 @@ export function computeChandelierExit(
     }
   }
 
-  // Step 3: Rolling Highest High and Lowest Low
+  // Step 3: Rolling Highest & Lowest
+  // Formula 1: "Use Close Price for Extremums"
+  // If ON:  Highest = max(Close), Lowest = min(Close) (wicks ignored)
+  // If OFF: Highest = max(High),  Lowest = min(Low)   (wicks included)
+  const highestHigh = new Array<number>(n);
+  const lowestLow = new Array<number>(n);
+  const highestClose = new Array<number>(n);
+  const lowestClose = new Array<number>(n);
   const highest = new Array<number>(n);
   const lowest = new Array<number>(n);
 
@@ -220,12 +316,123 @@ export function computeChandelierExit(
     const startIdx = Math.max(0, i - atrPeriod + 1);
     let hMax = ha[startIdx].haHigh;
     let lMin = ha[startIdx].haLow;
+    let cMax = ha[startIdx].haClose;
+    let cMin = ha[startIdx].haClose;
+
     for (let j = startIdx + 1; j <= i; j++) {
       if (ha[j].haHigh > hMax) hMax = ha[j].haHigh;
       if (ha[j].haLow < lMin) lMin = ha[j].haLow;
+      if (ha[j].haClose > cMax) cMax = ha[j].haClose;
+      if (ha[j].haClose < cMin) cMin = ha[j].haClose;
     }
-    highest[i] = hMax;
-    lowest[i] = lMin;
+
+    highestHigh[i] = hMax;
+    lowestLow[i] = lMin;
+    highestClose[i] = cMax;
+    lowestClose[i] = cMin;
+
+    highest[i] = useCloseForExtremums ? cMax : hMax;
+    lowest[i] = useCloseForExtremums ? cMin : lMin;
+  }
+
+  // Pre-calculate Extremum Curves for Formula 2, 3, 4
+  const haCloses = ha.map(b => b.haClose);
+  const maValues = computeMA(haCloses, maType, maLength);
+
+  // Range MA rolling extremes over extremumLookback
+  const prevHighs = new Array<number>(n);
+  const prevLows = new Array<number>(n);
+  for (let i = 0; i < n; i++) {
+    const start = Math.max(0, i - extremumLookback + 1);
+    let maxH = useCloseForExtremums ? ha[start].haClose : ha[start].haHigh;
+    let minL = useCloseForExtremums ? ha[start].haClose : ha[start].haLow;
+    for (let j = start + 1; j <= i; j++) {
+      const curH = useCloseForExtremums ? ha[j].haClose : ha[j].haHigh;
+      const curL = useCloseForExtremums ? ha[j].haClose : ha[j].haLow;
+      if (curH > maxH) maxH = curH;
+      if (curL < minL) minL = curL;
+    }
+    prevHighs[i] = maxH;
+    prevLows[i] = minL;
+  }
+
+  // Formula 3: Track Crests (Peaks) & Troughs (Valleys) along MA curve
+  const crests = new Array<boolean>(n).fill(false);
+  const troughs = new Array<boolean>(n).fill(false);
+  const lastCrestVal = new Array<number>(n);
+  const lastTroughVal = new Array<number>(n);
+
+  let currentCrest = highestHigh[0];
+  let currentTrough = lowestLow[0];
+
+  for (let i = 0; i < n; i++) {
+    if (i >= 2) {
+      const slopeCur = maValues[i] - maValues[i - 1];
+      const slopePrev = maValues[i - 1] - maValues[i - 2];
+      if (slopePrev > 0 && slopeCur <= 0) {
+        crests[i] = true;
+        currentCrest = maValues[i - 1];
+      }
+      if (slopePrev < 0 && slopeCur >= 0) {
+        troughs[i] = true;
+        currentTrough = maValues[i - 1];
+      }
+    }
+    lastCrestVal[i] = currentCrest;
+    lastTroughVal[i] = currentTrough;
+  }
+
+  // Formula 4: Structural Swing Pivots (3-bar fractal highs / lows)
+  const pivotHighs = new Array<boolean>(n).fill(false);
+  const pivotLows = new Array<boolean>(n).fill(false);
+  const activePivotHigh = new Array<number>(n);
+  const activePivotLow = new Array<number>(n);
+
+  let currentPivotH = highestHigh[0];
+  let currentPivotL = lowestLow[0];
+
+  for (let i = 0; i < n; i++) {
+    if (i >= 2) {
+      const prevH = useCloseForExtremums ? ha[i - 1].haClose : ha[i - 1].haHigh;
+      const curH = useCloseForExtremums ? ha[i].haClose : ha[i].haHigh;
+      const prev2H = useCloseForExtremums ? ha[i - 2].haClose : ha[i - 2].haHigh;
+
+      const prevL = useCloseForExtremums ? ha[i - 1].haClose : ha[i - 1].haLow;
+      const curL = useCloseForExtremums ? ha[i].haClose : ha[i].haLow;
+      const prev2L = useCloseForExtremums ? ha[i - 2].haClose : ha[i - 2].haLow;
+
+      if (prevH > curH && prevH > prev2H) {
+        pivotHighs[i - 1] = true;
+        currentPivotH = prevH;
+      }
+      if (prevL < curL && prevL < prev2L) {
+        pivotLows[i - 1] = true;
+        currentPivotL = prevL;
+      }
+    }
+    activePivotHigh[i] = currentPivotH;
+    activePivotLow[i] = currentPivotL;
+  }
+
+  // Choose the active starting anchors based on the selected Extremum Formula
+  const activeUpperAnchor = new Array<number>(n);
+  const activeLowerAnchor = new Array<number>(n);
+
+  for (let i = 0; i < n; i++) {
+    if (extremumFormula === 'range_ma_crossover') {
+      activeUpperAnchor[i] = prevHighs[i];
+      activeLowerAnchor[i] = prevLows[i];
+    } else if (extremumFormula === 'ma_plus_crest') {
+      activeUpperAnchor[i] = lastCrestVal[i];
+      activeLowerAnchor[i] = lastTroughVal[i];
+    } else if (extremumFormula === 'structural_sr') {
+      activeUpperAnchor[i] = activePivotHigh[i];
+      activeLowerAnchor[i] = activePivotLow[i];
+    } else {
+      // Default: 'close_extremum' (User Given Formula)
+      activeUpperAnchor[i] = highest[i];
+      activeLowerAnchor[i] = lowest[i];
+    }
   }
 
   // Step 4: Ratcheting Stops & Direction Flip
@@ -239,8 +446,8 @@ export function computeChandelierExit(
 
   for (let i = 0; i < n; i++) {
     const curAtr = isNaN(atr[i]) ? tr[i] : atr[i];
-    const curHighest = highest[i];
-    const curLowest = lowest[i];
+    const curHighest = activeUpperAnchor[i];
+    const curLowest = activeLowerAnchor[i];
     const close = ha[i].haClose;
 
     const lsRaw = curHighest - atrMult * curAtr;
@@ -272,8 +479,6 @@ export function computeChandelierExit(
       longStop[i] = ls;
       shortStop[i] = ss;
 
-      // Direction flip:
-      // dir := close > shortStop[1] ? 1 : close < longStop[1] ? -1 : dir[1]
       if (i === 0) {
         direction[0] = 1;
       } else {
@@ -290,8 +495,6 @@ export function computeChandelierExit(
         }
       }
     } else if (algorithm === 'user_original') {
-      // User's original script logic:
-      // Uses current close[i] > long_stop[i - 1]
       if (i > 0 && !isNaN(longStop[i - 1]) && close > longStop[i - 1]) {
         ls = Math.max(ls, longStop[i - 1]);
       }
@@ -318,7 +521,6 @@ export function computeChandelierExit(
         }
       }
     } else {
-      // Classic LeBeau trailing stop
       if (i > 0) {
         if (direction[i - 1] === 1) {
           ls = Math.max(ls, longStop[i - 1]);
@@ -342,7 +544,6 @@ export function computeChandelierExit(
       }
     }
 
-    // Flip signals
     if (i > 0) {
       if (direction[i] === 1 && direction[i - 1] === -1) {
         buySignal[i] = true;
@@ -352,15 +553,20 @@ export function computeChandelierExit(
     }
   }
 
-  // Build final bars
+  // Build final bars with Extremum data
   const result: ChandelierBar[] = [];
   for (let i = 0; i < n; i++) {
+    const rangeCrossLong = i > 0 && prevLows[i] > maValues[i] && prevLows[i - 1] <= maValues[i - 1];
+    const rangeCrossShort = i > 0 && prevHighs[i] < maValues[i] && prevHighs[i - 1] >= maValues[i - 1];
+
     result.push({
       ...ha[i],
       tr: tr[i],
       atr: isNaN(atr[i]) ? tr[i] : atr[i],
-      highest: highest[i],
-      lowest: lowest[i],
+      highest: activeUpperAnchor[i],
+      lowest: activeLowerAnchor[i],
+      highestClose: highestClose[i],
+      lowestClose: lowestClose[i],
       longStopRaw: longStopRaw[i],
       shortStopRaw: shortStopRaw[i],
       longStop: longStop[i],
@@ -370,6 +576,23 @@ export function computeChandelierExit(
       sellSignal: sellSignal[i],
       enterLong: i > 0 ? buySignal[i - 1] : false,
       enterShort: i > 0 ? sellSignal[i - 1] : false,
+      extremum: {
+        highestClose: highestClose[i],
+        lowestClose: lowestClose[i],
+        highestHigh: highestHigh[i],
+        lowestLow: lowestLow[i],
+        prevHigh: prevHighs[i],
+        prevLow: prevLows[i],
+        maValue: maValues[i],
+        maTrendColor: (i > 0 && maValues[i] >= maValues[i - 1]) ? 'green' : 'red',
+        rangeCrossLong,
+        rangeCrossShort,
+        isCrest: crests[i],
+        isTrough: troughs[i],
+        extremumPointPrice: crests[i] || troughs[i] ? maValues[i - 1] : undefined,
+        isPivotHigh: pivotHighs[i],
+        isPivotLow: pivotLows[i],
+      },
     });
   }
 
@@ -658,12 +881,16 @@ function emptyMetrics(totalCandles: number, totalTicks: number): BacktestMetrics
 export function getDetailedStepMath(
   bars: ChandelierBar[],
   index: number,
-  atrPeriod: number,
-  atrMult: number
+  atrPeriod: number = 22,
+  atrMult: number = 3.0,
+  config?: import('../types/trading').StrategyConfig
 ): StepMathDetail | null {
   if (index < 0 || index >= bars.length) return null;
   const bar = bars[index];
   const prevBar = index > 0 ? bars[index - 1] : null;
+
+  const useClose = config ? config.useCloseForExtremums : false;
+  const extremumFormula = config ? config.extremumFormula : 'close_extremum';
 
   // Step 2 formulas
   const haCloseFormula = `(${bar.realOpen.toFixed(2)} + ${bar.realHigh.toFixed(2)} + ${bar.realLow.toFixed(2)} + ${bar.realClose.toFixed(2)}) / 4 = ${bar.haClose.toFixed(3)}`;
@@ -693,16 +920,25 @@ export function getDetailedStepMath(
     atrFormula = `(${prevBar!.atr.toFixed(3)} × ${atrPeriod - 1} + ${bar.tr.toFixed(3)}) / ${atrPeriod} = ${bar.atr.toFixed(3)}`;
   }
 
-  // Step 4: Chandelier Bands
+  // Step 4: Chandelier Bands & Extremums
   const longStopRaw = bar.longStopRaw;
   const shortStopRaw = bar.shortStopRaw;
+
+  const hHigh = bar.extremum.highestHigh;
+  const lLow = bar.extremum.lowestLow;
+  const hClose = bar.extremum.highestClose;
+  const lClose = bar.extremum.lowestClose;
+
+  const extremumBasisText = useClose
+    ? `Use Close Price for Extremums = ON: Upper Anchor = HighestClose (${hClose.toFixed(2)}), Lower Anchor = LowestClose (${lClose.toFixed(2)}) [Wicks Ignored]`
+    : `Use Close Price for Extremums = OFF: Upper Anchor = HighestHigh (${hHigh.toFixed(2)}), Lower Anchor = LowestLow (${lLow.toFixed(2)}) [Wicks Included]`;
 
   let longStopRatchetFormula: string;
   let shortStopRatchetFormula: string;
 
   if (index === 0) {
-    longStopRatchetFormula = `Highest(${bar.highest.toFixed(2)}) - ${atrMult} × ${bar.atr.toFixed(3)} = ${longStopRaw.toFixed(3)}`;
-    shortStopRatchetFormula = `Lowest(${bar.lowest.toFixed(2)}) + ${atrMult} × ${bar.atr.toFixed(3)} = ${shortStopRaw.toFixed(3)}`;
+    longStopRatchetFormula = `Anchor(${bar.highest.toFixed(2)}) - ${atrMult} × ${bar.atr.toFixed(3)} = ${longStopRaw.toFixed(3)}`;
+    shortStopRatchetFormula = `Anchor(${bar.lowest.toFixed(2)}) + ${atrMult} × ${bar.atr.toFixed(3)} = ${shortStopRaw.toFixed(3)}`;
   } else {
     const prevC = prevBar!.haClose;
     const prevLs = prevBar!.longStop;
@@ -719,6 +955,25 @@ export function getDetailedStepMath(
     } else {
       shortStopRatchetFormula = `prevClose (${prevC.toFixed(3)}) >= prevShortStop (${prevSs.toFixed(3)}) → reset to Raw = ${bar.shortStop.toFixed(3)}`;
     }
+  }
+
+  // Step 4B: Selected Extremum Engine Formula Breakdown
+  let extremumFormulaName = 'Formula 1: Close Extremums (Use Close Price vs Wicks)';
+  let extremumFormulaMath = `Highest = max(Close_1..Close_${atrPeriod}), Lowest = min(Close_1..Close_${atrPeriod})`;
+  let extremumValuesSummary = `Close ON: LongStop = ${hClose.toFixed(2)} - ${atrMult}×${bar.atr.toFixed(3)} = ${(hClose - atrMult * bar.atr).toFixed(3)} | Close OFF: LongStop = ${hHigh.toFixed(2)} - ${atrMult}×${bar.atr.toFixed(3)} = ${(hHigh - atrMult * bar.atr).toFixed(3)}`;
+
+  if (extremumFormula === 'range_ma_crossover') {
+    extremumFormulaName = 'Formula 2: Range Moving Average Crossover Extremums';
+    extremumFormulaMath = `MA(${config?.maType || 'EMA'}, ${config?.maLength || 20}) = ${bar.extremum.maValue.toFixed(2)} | Rolling Channel [${bar.extremum.prevLow.toFixed(2)}, ${bar.extremum.prevHigh.toFixed(2)}]`;
+    extremumValuesSummary = `Trend Slope: ${bar.extremum.maTrendColor.toUpperCase()} | Range Cross Bull: ${bar.extremum.rangeCrossLong ? 'YES' : 'NO'} | Range Cross Bear: ${bar.extremum.rangeCrossShort ? 'YES' : 'NO'}`;
+  } else if (extremumFormula === 'ma_plus_crest') {
+    extremumFormulaName = 'Formula 3: MA+ Crest / Trough Inflection Extremums';
+    extremumFormulaMath = `Inflection wave detection along smoothed ${config?.maType || 'EMA'} trajectory`;
+    extremumValuesSummary = `Current Crest: ${bar.extremum.isCrest ? 'NEW CREST PEAK' : 'Tracking'} | Current Trough: ${bar.extremum.isTrough ? 'NEW TROUGH VALLEY' : 'Tracking'} | Active Anchor: ${bar.highest.toFixed(2)}`;
+  } else if (extremumFormula === 'structural_sr') {
+    extremumFormulaName = 'Formula 4: Structural Swing Pivot Support & Resistance';
+    extremumFormulaMath = `3-Bar Fractal Pivots (Swing High: H[t-1] > H[t] & H[t-1] > H[t-2])`;
+    extremumValuesSummary = `Pivot High: ${bar.extremum.isPivotHigh ? 'ACTIVE PIVOT HIGH' : 'Level active'} | Pivot Low: ${bar.extremum.isPivotLow ? 'ACTIVE PIVOT LOW' : 'Level active'} | Resistance: ${bar.highest.toFixed(2)} / Support: ${bar.lowest.toFixed(2)}`;
   }
 
   // Step 5: Direction
@@ -774,14 +1029,21 @@ export function getDetailedStepMath(
     tr: bar.tr,
     atrFormula,
     atr: bar.atr,
-    highestHigh: bar.highest,
-    lowestLow: bar.lowest,
+    useCloseForExtremums: useClose,
+    highestHigh: hHigh,
+    lowestLow: lLow,
+    highestClose: hClose,
+    lowestClose: lClose,
+    extremumBasisText,
     longStopRaw,
     shortStopRaw,
     longStopRatchetFormula,
     longStop: bar.longStop,
     shortStopRatchetFormula,
     shortStop: bar.shortStop,
+    extremumFormulaName,
+    extremumFormulaMath,
+    extremumValuesSummary,
     directionFormula,
     direction: bar.direction,
     directionLabel: bar.direction === 1 ? 'BULLISH' : 'BEARISH',

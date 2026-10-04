@@ -58,13 +58,13 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs">
             <Terminal className="w-4 h-4" />
-            <span>CLI Backtest with Custom Timeframes</span>
+            <span>CLI Backtest with Custom Formulas</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Run multi-timeframe pipeline from terminal:
+            Run multi-timeframe pipeline with Close Extremums:
           </p>
           <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-sky-300">
-            python3 trading_ha_chandelier.py --csv frxXAUUSD_1790274600.csv --tf 60 300
+            python3 trading_ha_chandelier.py --csv frxXAUUSD_1790274600.csv --tf 60 300 --use-close --formula close
           </div>
         </div>
 
@@ -74,7 +74,7 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
             <span>Launch Local Offline HTML GUI</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Zero dependencies, launches instant browser GUI:
+            Zero dependencies, launches instant browser 6-panel GUI:
           </p>
           <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-emerald-300">
             python3 trading_ha_chandelier.py --gui
@@ -84,13 +84,15 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-purple-400 font-semibold text-xs">
             <BookOpen className="w-4 h-4" />
-            <span>Import as a Clean Python Module</span>
+            <span>3 Standalone Formula Files Created</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Import individual functions in your own bots:
+            Run standalone scripts for each formula:
           </p>
-          <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-purple-300">
-            from trading_ha_chandelier import *
+          <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-purple-300 space-y-1">
+            <div>python3 extremum_formula1_close.py</div>
+            <div>python3 extremum_formula2_range_ma.py</div>
+            <div>python3 extremum_formula3_crest_trough.py</div>
           </div>
         </div>
       </div>

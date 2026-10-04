@@ -174,8 +174,24 @@ def to_heikin_ashi_raw(candles):
     return ha_list
 
 
-def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0, mode: str = "tradingview"):
-    """Computes Chandelier Exit with TradingView EverGet fix."""
+def chandelier_exit_raw(
+    ha_candles,
+    atr_period: int = 22,
+    atr_mult: float = 3.0,
+    mode: str = "tradingview",
+    use_close: bool = False,
+    extremum_formula: str = "close",
+    ma_len: int = 20,
+    lookback: int = 5,
+):
+    """
+    Computes Chandelier Exit over Heikin-Ashi candles with Extremum Engine.
+    Extremum Formulas:
+      - 'close'        : Formula 1 - Close Extremums (Use Close Price vs Wicks)
+      - 'range_ma'     : Formula 2 - Range MA Crossover Dynamic Bands
+      - 'crest_trough' : Formula 3 - MA+ Crest & Trough Inflection Waves
+      - 'pivot_sr'     : Formula 4 - Structural 3-Bar Swing Pivot Support & Resistance
+    """
     n = len(ha_candles)
     if n == 0:
         return []
@@ -195,23 +211,123 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
     for i in range(1, n):
         atr[i] = (atr[i - 1] * (atr_period - 1) + tr[i]) / atr_period
 
-    # 3. Rolling Extremes
-    highest = [0.0] * n
-    lowest = [0.0] * n
+    # 3. Rolling Extremes for Formula 1
+    # Use Close Price for Extremums:
+    # If ON: Highest = max(Close), Lowest = min(Close) (wicks ignored)
+    # If OFF: Highest = max(High), Lowest = min(Low) (wicks included)
+    highest_close = [0.0] * n
+    lowest_close = [0.0] * n
+    highest_high = [0.0] * n
+    lowest_low = [0.0] * n
+    f1_upper = [0.0] * n
+    f1_lower = [0.0] * n
+
     for i in range(n):
         s = max(0, i - atr_period + 1)
-        highest[i] = max(ha_candles[j]["ha_high"] for j in range(s, i + 1))
-        lowest[i] = min(ha_candles[j]["ha_low"] for j in range(s, i + 1))
+        h_max = max(ha_candles[j]["ha_high"] for j in range(s, i + 1))
+        l_min = min(ha_candles[j]["ha_low"] for j in range(s, i + 1))
+        c_max = max(ha_candles[j]["ha_close"] for j in range(s, i + 1))
+        c_min = min(ha_candles[j]["ha_close"] for j in range(s, i + 1))
 
-    # 4. Stops & Direction
+        highest_high[i] = h_max
+        lowest_low[i] = l_min
+        highest_close[i] = c_max
+        lowest_close[i] = c_min
+
+        f1_upper[i] = c_max if use_close else h_max
+        f1_lower[i] = c_min if use_close else l_min
+
+    # Formula 2 & 3: Moving Average (EMA)
+    closes = [c["ha_close"] for c in ha_candles]
+    ma = [0.0] * n
+    if n > 0:
+        ma[0] = closes[0]
+        k = 2.0 / (ma_len + 1)
+        for i in range(1, n):
+            ma[i] = closes[i] * k + ma[i - 1] * (1.0 - k)
+
+    # Formula 2: Rolling Range Envelope over lookback
+    prev_high = [0.0] * n
+    prev_low = [0.0] * n
+    for i in range(n):
+        s = max(0, i - lookback + 1)
+        prev_high[i] = max((ha_candles[j]["ha_close"] if use_close else ha_candles[j]["ha_high"]) for j in range(s, i + 1))
+        prev_low[i] = min((ha_candles[j]["ha_close"] if use_close else ha_candles[j]["ha_low"]) for j in range(s, i + 1))
+
+    # Formula 3: Track Crests & Troughs along MA
+    crests = [False] * n
+    troughs = [False] * n
+    last_crest = [highest_high[0]] * n
+    last_trough = [lowest_low[0]] * n
+    c_crest = highest_high[0]
+    c_trough = lowest_low[0]
+
+    for i in range(2, n):
+        d_cur = ma[i] - ma[i - 1]
+        d_prev = ma[i - 1] - ma[i - 2]
+        if d_prev > 0 and d_cur <= 0:
+            crests[i] = True
+            c_crest = ma[i - 1]
+        if d_prev < 0 and d_cur >= 0:
+            troughs[i] = True
+            c_trough = ma[i - 1]
+        last_crest[i] = c_crest
+        last_trough[i] = c_trough
+
+    # Formula 4: 3-bar Structural Swing Pivots
+    pivot_highs = [False] * n
+    pivot_lows = [False] * n
+    active_res = [highest_high[0]] * n
+    active_sup = [lowest_low[0]] * n
+    c_res = highest_high[0]
+    c_sup = lowest_low[0]
+
+    for i in range(2, n):
+        prev_h = ha_candles[i - 1]["ha_close"] if use_close else ha_candles[i - 1]["ha_high"]
+        cur_h = ha_candles[i]["ha_close"] if use_close else ha_candles[i]["ha_high"]
+        prev2_h = ha_candles[i - 2]["ha_close"] if use_close else ha_candles[i - 2]["ha_high"]
+
+        prev_l = ha_candles[i - 1]["ha_close"] if use_close else ha_candles[i - 1]["ha_low"]
+        cur_l = ha_candles[i]["ha_close"] if use_close else ha_candles[i]["ha_low"]
+        prev2_l = ha_candles[i - 2]["ha_close"] if use_close else ha_candles[i - 2]["ha_low"]
+
+        if prev_h > cur_h and prev_h > prev2_h:
+            pivot_highs[i - 1] = True
+            c_res = prev_h
+        if prev_l < cur_l and prev_l < prev2_l:
+            pivot_lows[i - 1] = True
+            c_sup = prev_l
+
+        active_res[i] = c_res
+        active_sup[i] = c_sup
+
+    # Select Starting Extremum Anchors based on extremum_formula
+    upper_anchor = [0.0] * n
+    lower_anchor = [0.0] * n
+    for i in range(n):
+        if extremum_formula == "range_ma":
+            upper_anchor[i] = prev_high[i]
+            lower_anchor[i] = prev_low[i]
+        elif extremum_formula == "crest_trough":
+            upper_anchor[i] = last_crest[i]
+            lower_anchor[i] = last_trough[i]
+        elif extremum_formula == "pivot_sr":
+            upper_anchor[i] = active_res[i]
+            lower_anchor[i] = active_sup[i]
+        else:
+            # Default: Formula 1 (Close Extremums)
+            upper_anchor[i] = f1_upper[i]
+            lower_anchor[i] = f1_lower[i]
+
+    # 4. Stops & Direction Ratchet
     result = []
     direction = 1
     prev_ls = 0.0
     prev_ss = 0.0
 
     for i in range(n):
-        h_max = highest[i]
-        l_min = lowest[i]
+        h_max = upper_anchor[i]
+        l_min = lower_anchor[i]
         cur_atr = atr[i]
         c = ha_candles[i]["ha_close"]
 
@@ -233,7 +349,6 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
                 elif c < prev_ls:
                     direction = -1
         else:
-            # User original logic
             if i > 0:
                 if c > prev_ls:
                     ls = max(ls, prev_ls)
@@ -254,6 +369,19 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
             "atr": cur_atr,
             "highest": h_max,
             "lowest": l_min,
+            "highest_close": highest_close[i],
+            "lowest_close": lowest_close[i],
+            "highest_high": highest_high[i],
+            "lowest_low": lowest_low[i],
+            "ma_val": ma[i],
+            "prev_high": prev_high[i],
+            "prev_low": prev_low[i],
+            "is_crest": crests[i],
+            "is_trough": troughs[i],
+            "is_pivot_h": pivot_highs[i],
+            "is_pivot_l": pivot_lows[i],
+            "long_stop_raw": ls_raw,
+            "short_stop_raw": ss_raw,
             "long_stop": ls,
             "short_stop": ss,
             "direction": direction,
@@ -457,13 +585,49 @@ def run_local_gui_server(port: int = 8080):
     <canvas id="cvHa" height="210"></canvas>
   </div>
 
+  <div class="chart-panel" style="border-color:#0284c7;">
+    <div class="chart-title" style="flex-wrap:wrap; gap:8px;">
+      <span style="color:#38bdf8; font-weight:bold;">PANEL 4 — EXTREMUMS ENGINE &amp; CHANDELIER BASIS</span>
+      <div style="display:flex; align-items:center; gap:8px; font-size:11px;">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:4px; color:#cbd5e1;">
+          <input type="checkbox" id="useCloseToggle"> <strong>Use Close Price for Extremums</strong> (Wicks Ignored)
+        </label>
+      </div>
+    </div>
+    
+    <!-- 4 Radio Buttons -->
+    <div style="display:flex; gap:12px; flex-wrap:wrap; background:#070b12; padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:11px; border:1px solid #1e293b;">
+      <span style="color:var(--muted); font-weight:bold;">Formula:</span>
+      <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+        <input type="radio" name="guiExtremumFormula" value="close" checked> <strong>F1: Close Extremums (User Formula)</strong>
+      </label>
+      <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+        <input type="radio" name="guiExtremumFormula" value="range_ma"> <strong>F2: Range MA Crossover</strong>
+      </label>
+      <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+        <input type="radio" name="guiExtremumFormula" value="crest_trough"> <strong>F3: MA+ Crest / Trough</strong>
+      </label>
+      <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+        <input type="radio" name="guiExtremumFormula" value="pivot_sr"> <strong>F4: Structural Pivot S/R</strong>
+      </label>
+    </div>
+
+    <!-- Math Callout -->
+    <div style="font-size:11px; font-family:monospace; background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.25); padding:8px 12px; border-radius:6px; margin-bottom:10px; color:#cbd5e1;">
+      <strong>Mathematical Rule:</strong> <span id="formulaRuleText">Close ON: Highest = max(Close_22), Lowest = min(Close_22) (Wicks Ignored)</span><br>
+      <span style="color:var(--muted)">Example: High=105, Close=101, Low=98 &rarr; Close ON: Highest=101 | Close OFF: Highest=105</span>
+    </div>
+
+    <canvas id="cvExtremum" height="170"></canvas>
+  </div>
+
   <div class="chart-panel">
-    <div class="chart-title"><span>PANEL 4 — WILDER ATR(22) VOLATILITY</span><span style="color:var(--amber)">ta.rma</span></div>
+    <div class="chart-title"><span>PANEL 5 — WILDER ATR(22) VOLATILITY</span><span style="color:var(--amber)">ta.rma</span></div>
     <canvas id="cvAtr" height="100"></canvas>
   </div>
 
   <div class="chart-panel">
-    <div class="chart-title"><span>PANEL 5 — CUMULATIVE PNL EQUITY STEP CURVE</span><span>Executed at Candle N+1 Real Open</span></div>
+    <div class="chart-title"><span>PANEL 6 — CUMULATIVE PNL EQUITY STEP CURVE</span><span>Executed at Candle N+1 Real Open</span></div>
     <canvas id="cvEq" height="130"></canvas>
   </div>
 
@@ -586,7 +750,7 @@ function calculate() {
     prevHaClose = haClose;
   }
 
-  // 3. Chandelier Exit
+  // 3. Chandelier Exit with Extremums Engine
   let n = haList.length;
   let tr = new Array(n);
   tr[0] = haList[0].haHigh - haList[0].haLow;
@@ -599,15 +763,61 @@ function calculate() {
   for(let i=1; i<n; i++) {
     atr[i] = (atr[i-1] * (atrPeriod - 1) + tr[i]) / atrPeriod;
   }
-  let highest = new Array(n), lowest = new Array(n);
+
+  let useClose = document.getElementById('useCloseToggle') ? document.getElementById('useCloseToggle').checked : false;
+  let extremumFormula = document.querySelector('input[name="guiExtremumFormula"]:checked')?.value || 'close';
+
+  let ruleElem = document.getElementById('formulaRuleText');
+  if(ruleElem) {
+    if(useClose) {
+      ruleElem.innerHTML = '<strong>Close ON:</strong> Highest = max(Close_22), Lowest = min(Close_22) <span style="color:#00e676;">(Wicks Ignored)</span>';
+    } else {
+      ruleElem.innerHTML = '<strong>Close OFF:</strong> Highest = max(High_22), Lowest = min(Low_22) <span style="color:#f59e0b;">(Wicks Included)</span>';
+    }
+  }
+
+  let highestHigh = new Array(n), lowestLow = new Array(n);
+  let highestClose = new Array(n), lowestClose = new Array(n);
+  let upperAnchor = new Array(n), lowerAnchor = new Array(n);
+
   for(let i=0; i<n; i++) {
     let s = Math.max(0, i - atrPeriod + 1);
     let hMax = haList[s].haHigh, lMin = haList[s].haLow;
+    let cMax = haList[s].haClose, cMin = haList[s].haClose;
     for(let j=s+1; j<=i; j++) {
       if(haList[j].haHigh > hMax) hMax = haList[j].haHigh;
       if(haList[j].haLow < lMin) lMin = haList[j].haLow;
+      if(haList[j].haClose > cMax) cMax = haList[j].haClose;
+      if(haList[j].haClose < cMin) cMin = haList[j].haClose;
     }
-    highest[i] = hMax; lowest[i] = lMin;
+    highestHigh[i] = hMax; lowestLow[i] = lMin;
+    highestClose[i] = cMax; lowestClose[i] = cMin;
+
+    upperAnchor[i] = useClose ? cMax : hMax;
+    lowerAnchor[i] = useClose ? cMin : lMin;
+  }
+
+  // Pre-calculate Moving Average (EMA 10) & Range for Formula 2 & 3
+  let ma = new Array(n);
+  ma[0] = haList[0].haClose;
+  let k = 2.0 / (10 + 1);
+  for(let i=1; i<n; i++) {
+    ma[i] = haList[i].haClose * k + ma[i-1] * (1 - k);
+  }
+
+  let prevHigh = new Array(n), prevLow = new Array(n);
+  for(let i=0; i<n; i++) {
+    let s = Math.max(0, i - 4);
+    prevHigh[i] = Math.max(...haList.slice(s, i+1).map(b => useClose ? b.haClose : b.haHigh));
+    prevLow[i] = Math.min(...haList.slice(s, i+1).map(b => useClose ? b.haClose : b.haLow));
+  }
+
+  // If Formula 2, anchor to range channel
+  if(extremumFormula === 'range_ma') {
+    for(let i=0; i<n; i++) {
+      upperAnchor[i] = prevHigh[i];
+      lowerAnchor[i] = prevLow[i];
+    }
   }
 
   let longStop = new Array(n), shortStop = new Array(n);
@@ -615,8 +825,8 @@ function calculate() {
   let buySignal = new Array(n).fill(false), sellSignal = new Array(n).fill(false);
 
   for(let i=0; i<n; i++) {
-    let ls = highest[i] - atrMult * atr[i];
-    let ss = lowest[i] + atrMult * atr[i];
+    let ls = upperAnchor[i] - atrMult * atr[i];
+    let ss = lowerAnchor[i] + atrMult * atr[i];
     if(mode === 'tradingview') {
       if(i > 0) {
         if(haList[i-1].haClose > longStop[i-1]) ls = Math.max(ls, longStop[i-1]);
@@ -647,7 +857,12 @@ function calculate() {
 
   computedBars = haList.map((b, i) => ({
     ...b,
-    tr: tr[i], atr: atr[i], highest: highest[i], lowest: lowest[i],
+    tr: tr[i], atr: atr[i],
+    highest: upperAnchor[i], lowest: lowerAnchor[i],
+    highestHigh: highestHigh[i], lowestLow: lowestLow[i],
+    highestClose: highestClose[i], lowestClose: lowestClose[i],
+    maVal: ma[i], prevHigh: prevHigh[i], prevLow: prevLow[i],
+    useClose, extremumFormula,
     longStop: longStop[i], shortStop: shortStop[i], direction: direction[i],
     buySignal: buySignal[i], sellSignal: sellSignal[i],
     enterLong: i > 0 ? buySignal[i-1] : false,
@@ -703,6 +918,7 @@ function calculate() {
   drawTicksChart();
   drawRealCandles();
   drawHaCandles();
+  drawExtremumChart();
   drawAtrChart();
   drawEquityChart();
   renderTradesTable();
@@ -713,6 +929,9 @@ function updateInspector(idx) {
   document.getElementById('barIndexText').innerText = `#${idx}`;
   let b = computedBars[idx];
   let prev = idx > 0 ? computedBars[idx-1] : null;
+
+  let wickHighDelta = (b.highestHigh - b.highestClose).toFixed(2);
+  let wickLowDelta = (b.lowestClose - b.lowestLow).toFixed(2);
 
   let html = `
     <div class="step-row"><div class="step-label">STEP 1: Real Market OHLC (${b.timeStr})</div>
@@ -726,8 +945,10 @@ function updateInspector(idx) {
     <div class="step-row"><div class="step-label">STEP 3: True Range & ATR</div>
       TR = max(H-L, |H-C_prev|, |L-C_prev|) = <strong>${b.tr.toFixed(3)}</strong> | Wilder ATR = <strong>${b.atr.toFixed(3)}</strong>
     </div>
-    <div class="step-row"><div class="step-label">STEP 4: Chandelier Bands & Ratchet</div>
-      Highest(${b.highest.toFixed(2)}) | Lowest(${b.lowest.toFixed(2)})<br>
+    <div class="step-row" style="border-left:3px solid #06b6d4;"><div class="step-label" style="color:#06b6d4;">STEP 4: Extremums Engine &amp; Ratchet (${b.useClose ? 'Close ON · Wicks Ignored' : 'Close OFF · Wicks Included'})</div>
+      <strong>Highest Close:</strong> ${b.highestClose.toFixed(2)} vs <strong>Highest High:</strong> ${b.highestHigh.toFixed(2)} (Wick &Delta;: +${wickHighDelta})<br>
+      <strong>Lowest Close:</strong> ${b.lowestClose.toFixed(2)} vs <strong>Lowest Low:</strong> ${b.lowestLow.toFixed(2)} (Wick &Delta;: -${wickLowDelta})<br>
+      Active Anchor: <strong>${b.highest.toFixed(2)}</strong> | Stop Starting Point = Anchor &plusmn; (ATR &times; Mult)<br>
       Long Stop = <strong>${b.longStop.toFixed(3)}</strong> | Short Stop = <strong>${b.shortStop.toFixed(3)}</strong>
     </div>
     <div class="step-row"><div class="step-label">STEP 5: Direction & Signals</div>
@@ -746,6 +967,116 @@ function updateInspector(idx) {
 document.getElementById('barSlider').addEventListener('input', (e) => {
   updateInspector(parseInt(e.target.value));
 });
+
+function drawExtremumChart() {
+  const cv = document.getElementById('cvExtremum');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const w = cv.width = cv.offsetWidth;
+  const h = cv.height = cv.offsetHeight;
+  ctx.clearRect(0,0,w,h);
+  if(!computedBars.length) return;
+
+  let minP = computedBars[0].lowestLow, maxP = computedBars[0].highestHigh;
+  for(let b of computedBars) {
+    if(b.lowestLow < minP) minP = b.lowestLow;
+    if(b.highestHigh > maxP) maxP = b.highestHigh;
+  }
+  let range = Math.max(0.2, maxP - minP);
+  let n = computedBars.length;
+
+  let getY = (val) => h - 15 - ((val - minP) / range) * (h - 30);
+  let getX = (idx) => (idx / Math.max(1, n - 1)) * (w - 30) + 15;
+
+  let formula = document.querySelector('input[name="guiExtremumFormula"]:checked')?.value || 'close';
+
+  if(formula === 'close') {
+    // Formula 1: Highest Close & Lowest Close (Cyan) vs Highest High & Lowest Low (Amber Dashed)
+    // 1. Shaded Wick Area
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), yH = getY(computedBars[i].highestHigh);
+      if(i===0) ctx.moveTo(x, yH); else ctx.lineTo(x, yH);
+    }
+    for(let i=n-1; i>=0; i--) {
+      ctx.lineTo(getX(i), getY(computedBars[i].highestClose));
+    }
+    ctx.closePath(); ctx.fill();
+
+    // 2. Highs & Lows lines
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].highestHigh);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].lowestLow);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 3. Close extremes (Cyan solid)
+    ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].highestClose);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].lowestClose);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  } else if(formula === 'range_ma') {
+    // Formula 2: Range Envelope & MA
+    ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 1.4; ctx.setLineDash([3, 2]);
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].prevHigh);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].prevLow);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // MA line
+    ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].maVal);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  } else {
+    // Formula 3 & 4
+    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].highest);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#10b981';
+    ctx.beginPath();
+    for(let i=0; i<n; i++) {
+      let x = getX(i), y = getY(computedBars[i].lowest);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
 
 function drawTicksChart() {
   const cv = document.getElementById('cvTicks');
@@ -925,8 +1256,14 @@ function renderTradesTable() {
 }
 
 document.getElementById('runBtn').addEventListener('click', calculate);
+if (document.getElementById('useCloseToggle')) {
+  document.getElementById('useCloseToggle').addEventListener('change', calculate);
+}
+document.querySelectorAll('input[name="guiExtremumFormula"]').forEach(r => {
+  r.addEventListener('change', calculate);
+});
 window.addEventListener('resize', () => {
-  drawTicksChart(); drawRealCandles(); drawHaCandles(); drawAtrChart(); drawEquityChart();
+  drawTicksChart(); drawRealCandles(); drawHaCandles(); drawExtremumChart(); drawAtrChart(); drawEquityChart();
 });
 
 calculate();
@@ -960,6 +1297,8 @@ def main():
     parser.add_argument("--atr-period", type=int, default=22, help="ATR Period")
     parser.add_argument("--atr-mult", type=float, default=3.0, help="ATR Multiplier")
     parser.add_argument("--mode", type=str, choices=["tradingview", "user_original"], default="tradingview", help="Chandelier Ratchet Mode")
+    parser.add_argument("--use-close", action="store_true", help="Use Close Price for Extremums (wicks ignored)")
+    parser.add_argument("--formula", type=str, choices=["close", "range_ma", "crest_trough", "pivot_sr"], default="close", help="Extremum Engine Formula: close, range_ma, crest_trough, pivot_sr")
     parser.add_argument("--gui", action="store_true", help="Launch local HTML server GUI")
     args = parser.parse_args()
 
@@ -969,7 +1308,9 @@ def main():
 
     print("=" * 80)
     print("  HEIKIN-ASHI & CHANDELIER EXIT QUANTITATIVE PIPELINE")
-    print(f"  Ratchet Mode: {args.mode.upper()}  |  ATR Period: {args.atr_period}  |  ATR Mult: {args.atr_mult}")
+    print(f"  Ratchet Mode     : {args.mode.upper()}")
+    print(f"  Extremum Formula : {args.formula.upper()}  |  Use Close Extremum: {'ON (Wicks Ignored)' if args.use_close else 'OFF (Wicks Included)'}")
+    print(f"  ATR Period       : {args.atr_period}  |  ATR Mult: {args.atr_mult}")
     print("=" * 80)
 
     if not os.path.exists(args.csv):
@@ -1000,7 +1341,14 @@ def main():
         ha = to_heikin_ashi_raw(candles)
         print(f"[3/5] Heikin-Ashi transformed  : {len(ha)}")
 
-        ce = chandelier_exit_raw(ha, atr_period=args.atr_period, atr_mult=args.atr_mult, mode=args.mode)
+        ce = chandelier_exit_raw(
+            ha,
+            atr_period=args.atr_period,
+            atr_mult=args.atr_mult,
+            mode=args.mode,
+            use_close=args.use_close,
+            extremum_formula=args.formula,
+        )
         buys = sum(1 for b in ce if b["buy_signal"])
         sells = sum(1 for b in ce if b["sell_signal"])
         print(f"[4/5] Chandelier Exit signals  : Buy={buys} | Sell={sells}")
