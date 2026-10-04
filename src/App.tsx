@@ -29,6 +29,7 @@ import { ChartPanels } from './components/ChartPanels';
 import { StepInspector } from './components/StepInspector';
 import { TradingViewDiffExplainer } from './components/TradingViewDiffExplainer';
 import { TradeLogTable } from './components/TradeLogTable';
+import { TestSuiteView } from './components/TestSuiteView';
 import { PythonLibraryView } from './components/PythonLibraryView';
 import { GuideModal } from './components/GuideModal';
 import { FULL_PYTHON_SCRIPT } from './utils/fullPythonScript';
@@ -390,6 +391,17 @@ export default function App() {
                 setSelectedCandleIndex(idx);
                 setActiveTab('inspector');
               }}
+            />
+          )}
+
+          {activeTab === 'test_suite' && (
+            <TestSuiteView
+              ticks={ticks}
+              datasetName={currentDatasetName}
+              config={config}
+              setConfig={setConfig}
+              onFileUpload={handleFileUpload}
+              onCustomCsvSubmit={handleCustomCsvSubmit}
             />
           )}
 

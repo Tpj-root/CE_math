@@ -1,0 +1,809 @@
+{
+  "timestamp": "2026-10-04T10:51:56.425073",
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "pass_rate": 100.0,
+  "duration_ms": 13.003283999978521,
+  "tests": [
+    {
+      "id": "UT-01",
+      "tier": "unit",
+      "target": "load_ticks_raw",
+      "name": "CSV Tick Parsing",
+      "passed": true,
+      "duration_ms": 0.20775500001946057,
+      "assertions": [
+        {
+          "msg": "Parsed exactly 3 records",
+          "passed": true,
+          "expected": 3,
+          "actual": 3
+        },
+        {
+          "msg": "First timestamp matches",
+          "passed": true,
+          "expected": 1790274600,
+          "actual": 1790274600
+        },
+        {
+          "msg": "First price matches (expected ~4274.65, got 4274.65)",
+          "passed": true,
+          "expected": 4274.65,
+          "actual": 4274.65
+        },
+        {
+          "msg": "Last price matches (expected ~4274.68, got 4274.68)",
+          "passed": true,
+          "expected": 4274.68,
+          "actual": 4274.68
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-02",
+      "tier": "unit",
+      "target": "ticks_to_candles_raw",
+      "name": "OHLC Aggregation Invariant",
+      "passed": true,
+      "duration_ms": 0.06898499987073592,
+      "assertions": [
+        {
+          "msg": "Creates 2 candle buckets",
+          "passed": true,
+          "expected": 2,
+          "actual": 2
+        },
+        {
+          "msg": "Open is first tick (50.0) (expected ~50.0, got 50.0)",
+          "passed": true,
+          "expected": 50.0,
+          "actual": 50.0
+        },
+        {
+          "msg": "High is max tick (55.0) (expected ~55.0, got 55.0)",
+          "passed": true,
+          "expected": 55.0,
+          "actual": 55.0
+        },
+        {
+          "msg": "Low is min tick (48.0) (expected ~48.0, got 48.0)",
+          "passed": true,
+          "expected": 48.0,
+          "actual": 48.0
+        },
+        {
+          "msg": "Close is last tick (52.0) (expected ~52.0, got 52.0)",
+          "passed": true,
+          "expected": 52.0,
+          "actual": 52.0
+        },
+        {
+          "msg": "High >= max(Open, Close) held",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Low <= min(Open, Close) held",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-03",
+      "tier": "unit",
+      "target": "to_heikin_ashi_raw",
+      "name": "Heikin-Ashi Bar 0 Pine Seed",
+      "passed": true,
+      "duration_ms": 0.01330499981122557,
+      "assertions": [
+        {
+          "msg": "Transformed 1 HA candle",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "haClose[0] matches (O+H+L+C)/4 = 101.0 (expected ~101.0, got 101.0)",
+          "passed": true,
+          "expected": 101.0,
+          "actual": 101.0
+        },
+        {
+          "msg": "haOpen[0] matches (O+C)/2 = 102.0 (expected ~102.0, got 102.0)",
+          "passed": true,
+          "expected": 102.0,
+          "actual": 102.0
+        },
+        {
+          "msg": "haHigh[0] matches max(H, haOpen, haClose) = 110.0 (expected ~110.0, got 110.0)",
+          "passed": true,
+          "expected": 110.0,
+          "actual": 110.0
+        },
+        {
+          "msg": "haLow[0] matches min(L, haOpen, haClose) = 90.0 (expected ~90.0, got 90.0)",
+          "passed": true,
+          "expected": 90.0,
+          "actual": 90.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-04",
+      "tier": "unit",
+      "target": "to_heikin_ashi_raw",
+      "name": "Heikin-Ashi Recursive Smoothing",
+      "passed": true,
+      "duration_ms": 0.010515999974813894,
+      "assertions": [
+        {
+          "msg": "haOpen[1] matches recursive formula = 101.5 (expected ~101.5, got 101.5)",
+          "passed": true,
+          "expected": 101.5,
+          "actual": 101.5
+        },
+        {
+          "msg": "haClose[1] matches (O+H+L+C)/4 = 106.75 (expected ~106.75, got 106.75)",
+          "passed": true,
+          "expected": 106.75,
+          "actual": 106.75
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-05",
+      "tier": "unit",
+      "target": "compute_extremums_raw",
+      "name": "Use Close Price = ON (Noise Filter)",
+      "passed": true,
+      "duration_ms": 0.04631299998436589,
+      "assertions": [
+        {
+          "msg": "Close ON upper anchor is Close (101.0) (expected ~101.0, got 101.0)",
+          "passed": true,
+          "expected": 101.0,
+          "actual": 101.0
+        },
+        {
+          "msg": "Close OFF upper anchor is High (105.0) (expected ~105.0, got 105.0)",
+          "passed": true,
+          "expected": 105.0,
+          "actual": 105.0
+        },
+        {
+          "msg": "Upper wick noise is High - Close = 4.0 (expected ~4.0, got 4.0)",
+          "passed": true,
+          "expected": 4.0,
+          "actual": 4.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-06",
+      "tier": "unit",
+      "target": "chandelier_exit_raw",
+      "name": "Monotonic Ratchet Invariant",
+      "passed": true,
+      "duration_ms": 0.2855369998542301,
+      "assertions": [
+        {
+          "msg": "Long stop monotonically increases or stays flat during uptrend",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "IT-01",
+      "tier": "integration",
+      "target": "Reader + Aggregator",
+      "name": "Data Pipeline Conservation",
+      "passed": true,
+      "duration_ms": 0.6257250001908687,
+      "assertions": [
+        {
+          "msg": "180 ticks at 60s bucket form 3 candles",
+          "passed": true,
+          "expected": 3,
+          "actual": 3
+        },
+        {
+          "msg": "Tick count conserved across all candles",
+          "passed": true,
+          "expected": 180,
+          "actual": 180
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "IT-02",
+      "tier": "integration",
+      "target": "HA + Extremums + Chandelier",
+      "name": "Quant Model Integration",
+      "passed": true,
+      "duration_ms": 0.5912169999646721,
+      "assertions": [
+        {
+          "msg": "Chandelier output matches candle count",
+          "passed": true,
+          "expected": 25,
+          "actual": 25
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Stops present in output bar",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Long stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Short stop is not NaN",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "IT-03",
+      "tier": "integration",
+      "target": "Formula Modulation",
+      "name": "All 4 Extremum Formulas Contract",
+      "passed": true,
+      "duration_ms": 2.3536520000106975,
+      "assertions": [
+        {
+          "msg": "Formula close produced 30 bars",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula close has zero NaN anchors",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula range_ma produced 30 bars",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula range_ma has zero NaN anchors",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula crest_trough produced 30 bars",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula crest_trough has zero NaN anchors",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula pivot_sr produced 30 bars",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Formula pivot_sr has zero NaN anchors",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "ST-01",
+      "tier": "system",
+      "target": "Full Quantitative Engine",
+      "name": "End-to-End Simulation Audit",
+      "passed": true,
+      "duration_ms": 7.896894999930737,
+      "assertions": [
+        {
+          "msg": "Loaded 3600 ticks from frxXAUUSD_1790274600.csv",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "System processed all candles",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Win rate bounded between 0% and 100%",
+          "passed": true,
+          "expected": "[0, 100]",
+          "actual": 20.0
+        },
+        {
+          "msg": "Total PnL is numeric and valid",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "ST-02",
+      "tier": "system",
+      "target": "Causality Engine",
+      "name": "Zero-Lookahead Causality Verification",
+      "passed": true,
+      "duration_ms": 0.5385160000059841,
+      "assertions": [
+        {
+          "msg": "Strict causality proven: historical bars identical regardless of future additions",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    }
+  ]
+}

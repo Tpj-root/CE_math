@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Software Testing Audit Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; background: #0b0f17; color: #cbd5e1; padding: 30px; }
+    h1, h2, h3 { color: #f8fafc; }
+    .card { background: #131d2e; border: 1px solid #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+    th, td { padding: 10px; border-bottom: 1px solid #1e293b; text-align: left; }
+    th { color: #94a3b8; text-transform: uppercase; font-size: 11px; }
+    pre { background: #070b12; padding: 15px; border-radius: 6px; overflow-x: auto; color: #38bdf8; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>SOFTWARE TESTING AUDIT REPORT</h1>
+  <p>Quantitative Trading Studio &bull; Heikin-Ashi &amp; Chandelier Exit Engine</p>
+  
+  <div class="card">
+    <h3>Executive Summary</h3>
+    <p><strong>Result:</strong> PASSED (100% SUCCESS)</p>
+    <p><strong>Pass Rate:</strong> 100.0% (11/11 tests) &bull; <strong>Duration:</strong> 13.00 ms</p>
+    <p><strong>Timestamp:</strong> 2026-10-04 10:51:56 UTC</p>
+  </div>
+
+  <div class="card">
+    <h3>Three-Tier Architecture</h3>
+    <pre>
+                         SOFTWARE TESTING
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+       Unit Test          Integration Test      System Test
+          │                    │                    │
+     One function          Several modules       Whole program
+          │                    │                    │
+          ▼                    ▼                    ▼
+      all the function()      reader + writer        Complete app
+    </pre>
+  </div>
+
+  <div class="card">
+    <h3>Detailed Test Results</h3>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Tier</th><th>Target Function</th><th>Specification</th><th>Duration</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+              <td><code>UT-01</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>load_ticks_raw</code></td>
+              <td>CSV Tick Parsing</td>
+              <td>0.21 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-02</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>ticks_to_candles_raw</code></td>
+              <td>OHLC Aggregation Invariant</td>
+              <td>0.07 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-03</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>to_heikin_ashi_raw</code></td>
+              <td>Heikin-Ashi Bar 0 Pine Seed</td>
+              <td>0.01 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-04</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>to_heikin_ashi_raw</code></td>
+              <td>Heikin-Ashi Recursive Smoothing</td>
+              <td>0.01 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-05</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>compute_extremums_raw</code></td>
+              <td>Use Close Price = ON (Noise Filter)</td>
+              <td>0.05 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-06</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>chandelier_exit_raw</code></td>
+              <td>Monotonic Ratchet Invariant</td>
+              <td>0.29 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>IT-01</code></td>
+              <td><strong>INTEGRATION</strong></td>
+              <td><code>Reader + Aggregator</code></td>
+              <td>Data Pipeline Conservation</td>
+              <td>0.63 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>IT-02</code></td>
+              <td><strong>INTEGRATION</strong></td>
+              <td><code>HA + Extremums + Chandelier</code></td>
+              <td>Quant Model Integration</td>
+              <td>0.59 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>IT-03</code></td>
+              <td><strong>INTEGRATION</strong></td>
+              <td><code>Formula Modulation</code></td>
+              <td>All 4 Extremum Formulas Contract</td>
+              <td>2.35 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>ST-01</code></td>
+              <td><strong>SYSTEM</strong></td>
+              <td><code>Full Quantitative Engine</code></td>
+              <td>End-to-End Simulation Audit</td>
+              <td>7.90 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>ST-02</code></td>
+              <td><strong>SYSTEM</strong></td>
+              <td><code>Causality Engine</code></td>
+              <td>Zero-Lookahead Causality Verification</td>
+              <td>0.54 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

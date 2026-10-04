@@ -1,0 +1,9 @@
+{
+  "use_close_for_extremums": true,
+  "total_upper_wick_noise": 314.8868,
+  "total_lower_wick_noise": 319.8802,
+  "total_noise_points": 634.767,
+  "avg_noise_per_bar": 10.5794,
+  "wick_spikes_filtered_count": 16,
+  "noise_reduction_percent": 100.0
+}

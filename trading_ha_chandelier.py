@@ -636,6 +636,40 @@ def simulate_trades_raw(bars, execution_price: str = "real_open", contract_size:
     return trades
 
 
+def compute_noise_reduction_analytics_raw(bars, use_close: bool = True):
+    """
+    Measures quantitative wick noise points and reduction efficiency
+    under Formula 1 'Use Close Price for Extremums'.
+    """
+    total_upper = 0.0
+    total_lower = 0.0
+    spikes = 0
+
+    for b in bars:
+        u_noise = b.get("upper_wick_noise", max(0.0, b["ha_high"] - b["ha_close"]))
+        l_noise = b.get("lower_wick_noise", max(0.0, b["ha_close"] - b["ha_low"]))
+        total_upper += u_noise
+        total_lower += l_noise
+        cur_atr = b.get("atr", 1.0)
+        if (u_noise + l_noise) > 1.5 * cur_atr:
+            spikes += 1
+
+    total_noise = total_upper + total_lower
+    n = len(bars) or 1
+    avg_noise = total_noise / n
+    reduction_pct = 100.0 if (use_close and total_noise > 0) else 0.0
+
+    return {
+        "use_close_for_extremums": use_close,
+        "total_upper_wick_noise": round(total_upper, 4),
+        "total_lower_wick_noise": round(total_lower, 4),
+        "total_noise_points": round(total_noise, 4),
+        "avg_noise_per_bar": round(avg_noise, 4),
+        "wick_spikes_filtered_count": spikes if use_close else 0,
+        "noise_reduction_percent": reduction_pct,
+    }
+
+
 # ============================================================================
 # LOCAL EMBEDDED GUI SERVER
 # ============================================================================

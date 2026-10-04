@@ -1,7 +1,7 @@
 import React from 'react';
-import { Download, Sliders, Layers, Calculator, HelpCircle, FileText, Code2, BookOpen } from 'lucide-react';
+import { Download, Sliders, Layers, Calculator, HelpCircle, FileText, Code2, BookOpen, ShieldCheck } from 'lucide-react';
 
-export type ActiveTab = 'charts' | 'inspector' | 'tv_diff' | 'trades' | 'python_lib';
+export type ActiveTab = 'charts' | 'inspector' | 'tv_diff' | 'trades' | 'python_lib' | 'test_suite';
 
 interface TopNavProps {
   activeTab: ActiveTab;
@@ -96,6 +96,18 @@ export const TopNav: React.FC<TopNavProps> = ({
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Trade Log & Metrics</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('test_suite')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            activeTab === 'test_suite'
+              ? 'bg-[#1e293b] text-cyan-400 font-semibold shadow-xs'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-[#131d2e]'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Test Suite (Unit / Int / Sys)</span>
         </button>
 
         <button
