@@ -29,11 +29,14 @@ import { StepInspector } from './components/StepInspector';
 import { TradingViewDiffExplainer } from './components/TradingViewDiffExplainer';
 import { TradeLogTable } from './components/TradeLogTable';
 import { PythonLibraryView } from './components/PythonLibraryView';
+import { GuideModal } from './components/GuideModal';
+import { FULL_PYTHON_SCRIPT } from './utils/fullPythonScript';
 
 export default function App() {
   // Navigation & UI state
   const [activeTab, setActiveTab] = useState<ActiveTab>('charts');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [guideOpen, setGuideOpen] = useState<boolean>(false);
   const [selectedCandleIndex, setSelectedCandleIndex] = useState<number>(0);
   const [currentDatasetName, setCurrentDatasetName] = useState<string>('official');
 
@@ -237,117 +240,7 @@ export default function App() {
 
   // Download Python file
   const handleDownloadPython = () => {
-    const pythonCode = `#!/usr/bin/env python3
-"""
-================================================================================
- HEIKIN-ASHI + CHANDELIER EXIT QUANTITATIVE TRADING ENGINE & LIBRARY
-================================================================================
- Calibrated for Pine Script EverGet exact compatibility + Real Market Execution
-"""
-import os
-import sys
-import numpy as np
-import pandas as pd
-
-def load_ticks(csv_path):
-    df = pd.read_csv(csv_path)
-    df.columns = [c.strip().lower() for c in df.columns]
-    time_col = next((c for c in df.columns if "time" in c or c in ("t", "ts")), None)
-    price_col = next((c for c in df.columns if "price" in c or c in ("p", "close", "last")), None)
-    df = df[[time_col, price_col]].rename(columns={time_col: "times", price_col: "prices"})
-    df["times"] = pd.to_numeric(df["times"], errors="coerce")
-    df["prices"] = pd.to_numeric(df["prices"], errors="coerce")
-    df = df.dropna().astype({"times": np.int64, "prices": float})
-    if len(df) > 0 and df["times"].iloc[0] > 1e11:
-        df["times"] = df["times"] // 1000
-    return df.drop_duplicates("times").sort_values("times").reset_index(drop=True)
-
-def ticks_to_candles(ticks, seconds):
-    t = ticks.copy()
-    t["bucket"] = (t["times"] // seconds) * seconds
-    g = t.groupby("bucket")["prices"]
-    candles = pd.DataFrame({
-        "open": g.first(), "high": g.max(), "low": g.min(), "close": g.last(), "ticks": g.size()
-    })
-    candles.index = pd.to_datetime(candles.index, unit="s", utc=True)
-    return candles
-
-def to_heikin_ashi(candles):
-    o, h, l, c = candles["open"].values, candles["high"].values, candles["low"].values, candles["close"].values
-    n = len(candles)
-    ha_close = (o + h + l + c) / 4.0
-    ha_open = np.empty(n)
-    if n > 0:
-        ha_open[0] = (o[0] + c[0]) / 2.0
-        for i in range(1, n):
-            ha_open[i] = (ha_open[i - 1] + ha_close[i - 1]) / 2.0
-    ha_high = np.maximum.reduce([h, ha_open, ha_close])
-    ha_low = np.minimum.reduce([l, ha_open, ha_close])
-    return pd.DataFrame({
-        "ha_open": ha_open, "ha_high": ha_high, "ha_low": ha_low, "ha_close": ha_close,
-        "real_open": o, "real_close": c, "ticks": candles["ticks"].values
-    }, index=candles.index)
-
-def chandelier_exit(ha, atr_period=22, atr_mult=3.0, mode="tradingview"):
-    df = ha.copy()
-    n = len(df)
-    high, low, close = df["ha_high"].values, df["ha_low"].values, df["ha_close"].values
-    tr = np.empty(n)
-    tr[0] = high[0] - low[0]
-    for i in range(1, n):
-        tr[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
-    atr = np.empty(n)
-    atr[0] = tr[0]
-    for i in range(1, n):
-        atr[i] = (atr[i - 1] * (atr_period - 1) + tr[i]) / atr_period
-    highest = np.empty(n)
-    lowest = np.empty(n)
-    for i in range(n):
-        s = max(0, i - atr_period + 1)
-        highest[i] = high[s: i + 1].max()
-        lowest[i] = low[s: i + 1].min()
-    long_stop = highest - atr_mult * atr
-    short_stop = lowest + atr_mult * atr
-    direction = np.ones(n, dtype=int)
-    for i in range(1, n):
-        prev_c = close[i - 1]
-        prev_ls = long_stop[i - 1]
-        prev_ss = short_stop[i - 1]
-        if prev_c > prev_ls:
-            long_stop[i] = max(long_stop[i], prev_ls)
-        if prev_c < prev_ss:
-            short_stop[i] = min(short_stop[i], prev_ss)
-        if close[i] > prev_ss:
-            direction[i] = 1
-        elif close[i] < prev_ls:
-            direction[i] = -1
-        else:
-            direction[i] = direction[i - 1]
-    buy = np.zeros(n, dtype=bool)
-    sell = np.zeros(n, dtype=bool)
-    for i in range(1, n):
-        if direction[i] == 1 and direction[i - 1] == -1:
-            buy[i] = True
-        elif direction[i] == -1 and direction[i - 1] == 1:
-            sell[i] = True
-    df["ATR"] = atr
-    df["LongStop"] = long_stop
-    df["ShortStop"] = short_stop
-    df["Direction"] = direction
-    df["BuySignal"] = buy
-    df["SellSignal"] = sell
-    return df
-
-if __name__ == "__main__":
-    csv_file = sys.argv[1] if len(sys.argv) > 1 else "frxXAUUSD_1790274600.csv"
-    ticks = load_ticks(csv_file)
-    candles = ticks_to_candles(ticks, 60)
-    ha = to_heikin_ashi(candles)
-    ce = chandelier_exit(ha, 22, 3.0)
-    print(f"Processed {len(candles)} candles. Buy signals: {ce['BuySignal'].sum()}, Sell signals: {ce['SellSignal'].sum()}")
-`;
-
-    const blob = new Blob([pythonCode], { type: 'text/x-python;charset=utf-8;' });
+    const blob = new Blob([FULL_PYTHON_SCRIPT], { type: 'text/x-python;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -365,6 +258,7 @@ if __name__ == "__main__":
         setActiveTab={setActiveTab}
         onExportCsv={handleExportDataCsv}
         onDownloadPython={handleDownloadPython}
+        onOpenGuide={() => setGuideOpen(true)}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         selectedCandleIndex={selectedCandleIndex}
@@ -435,6 +329,16 @@ if __name__ == "__main__":
           )}
         </main>
       </div>
+
+      {/* Interactive Guide & Documentation Modal */}
+      <GuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        onSwitchTab={(tab) => {
+          setActiveTab(tab);
+          setGuideOpen(false);
+        }}
+      />
     </div>
   );
 }

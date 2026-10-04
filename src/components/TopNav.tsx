@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Sliders, Layers, Calculator, HelpCircle, FileText, Code2 } from 'lucide-react';
+import { Download, Sliders, Layers, Calculator, HelpCircle, FileText, Code2, BookOpen } from 'lucide-react';
 
 export type ActiveTab = 'charts' | 'inspector' | 'tv_diff' | 'trades' | 'python_lib';
 
@@ -8,6 +8,7 @@ interface TopNavProps {
   setActiveTab: (tab: ActiveTab) => void;
   onExportCsv: () => void;
   onDownloadPython: () => void;
+  onOpenGuide: () => void;
   sidebarOpen: boolean;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   selectedCandleIndex: number;
@@ -18,6 +19,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   setActiveTab,
   onExportCsv,
   onDownloadPython,
+  onOpenGuide,
   sidebarOpen,
   setSidebarOpen,
   selectedCandleIndex,
@@ -111,6 +113,15 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Zone 3: Primary actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenGuide}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sky-300 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg transition-colors whitespace-nowrap"
+          title="Open User Guide & Manual"
+        >
+          <BookOpen className="w-3.5 h-3.5 text-sky-400" />
+          <span>User Guide</span>
+        </button>
+
         <button
           onClick={onExportCsv}
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-[#131d2e] hover:bg-[#1e293b] border border-[#27354a] rounded-lg transition-colors whitespace-nowrap"

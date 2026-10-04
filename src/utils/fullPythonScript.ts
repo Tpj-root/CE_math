@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+/**
+ * Exports the complete, production-ready trading_ha_chandelier.py library
+ * with full embedded GUI, separated charts, and step-by-step inspector.
+ */
+export const FULL_PYTHON_SCRIPT = `#!/usr/bin/env python3
 """
 ================================================================================
  HEIKIN-ASHI + CHANDELIER EXIT QUANTITATIVE TRADING ENGINE & LIBRARY
@@ -90,7 +94,6 @@ def load_ticks_raw(csv_path: str):
             try:
                 t = float(row[time_idx])
                 p = float(row[price_idx])
-                # Convert milliseconds if needed
                 t_sec = int(t // 1000 if t > 1e11 else t)
                 if t_sec not in seen_times:
                     seen_times.add(t_sec)
@@ -180,7 +183,6 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
     if n == 0:
         return []
 
-    # 1. True Range
     tr = [0.0] * n
     tr[0] = ha_candles[0]["ha_high"] - ha_candles[0]["ha_low"]
     for i in range(1, n):
@@ -189,13 +191,11 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
         prev_c = ha_candles[i - 1]["ha_close"]
         tr[i] = max(h - l, abs(h - prev_c), abs(l - prev_c))
 
-    # 2. Wilder's RMA ATR
     atr = [0.0] * n
     atr[0] = tr[0]
     for i in range(1, n):
         atr[i] = (atr[i - 1] * (atr_period - 1) + tr[i]) / atr_period
 
-    # 3. Rolling Extremes
     highest = [0.0] * n
     lowest = [0.0] * n
     for i in range(n):
@@ -203,7 +203,6 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
         highest[i] = max(ha_candles[j]["ha_high"] for j in range(s, i + 1))
         lowest[i] = min(ha_candles[j]["ha_low"] for j in range(s, i + 1))
 
-    # 4. Stops & Direction
     result = []
     direction = 1
     prev_ls = 0.0
@@ -233,7 +232,6 @@ def chandelier_exit_raw(ha_candles, atr_period: int = 22, atr_mult: float = 3.0,
                 elif c < prev_ls:
                     direction = -1
         else:
-            # User original logic
             if i > 0:
                 if c > prev_ls:
                     ls = max(ls, prev_ls)
@@ -321,7 +319,6 @@ def simulate_trades_raw(bars, execution_price: str = "real_open", contract_size:
             })
             position, entry_price, entry_time, entry_time_str = 1, p, t, t_str
 
-    # Force close final
     if position != 0 and bars:
         last = bars[-1]
         p = last["real_close"]
@@ -367,8 +364,6 @@ def run_local_gui_server(port: int = 8080):
   .control-group input, .control-group select { width: 100%; background: #070b12; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: monospace; }
   .btn { background: var(--sky); color: #0b0f17; font-weight: bold; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 13px; }
   .btn:hover { opacity: 0.9; }
-  .btn-secondary { background: #1e293b; color: var(--text); border: 1px solid #334155; }
-  .btn-secondary:hover { background: #334155; }
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
   .stat-card { background: var(--card); border: 1px solid var(--border); padding: 12px; border-radius: 6px; }
   .stat-card .lbl { font-size: 11px; color: var(--muted); }
@@ -400,7 +395,7 @@ def run_local_gui_server(port: int = 8080):
     <ol>
       <li><strong>Input CSV Data:</strong> Paste or choose your tick file (format: <code>times,prices</code> like your official gold file <code>frxXAUUSD_1790274600.csv</code>).</li>
       <li><strong>Configure Variables:</strong> Set candle timeframe (e.g. <code>60</code> for 1m, <code>300</code> for 5m), ATR period (<code>22</code>), and Multiplier (<code>3.0</code>).</li>
-      <li><strong>Run Calculations:</strong> Click <em>"Run Calculations & Update Charts"</em> to see all 5 separated charts instantly.</li>
+      <li><strong>Run Calculations:</strong> Click <em>"Run Calculations"</em> to see all 5 separated charts instantly.</li>
       <li><strong>Inspect Any Step:</strong> Drag the slider in the Mathematical Inspector to see every raw formula with plugged-in values.</li>
     </ol>
   </div>
@@ -498,7 +493,6 @@ let rawTicks = [];
 let computedBars = [];
 let computedTrades = [];
 
-// Generate sample starting ticks matching official frxXAUUSD_1790274600
 function genDefaultTicks() {
   const baseT = 1790274600;
   const init = [4274.65, 4274.58, 4274.68, 4274.63, 4274.70, 4274.70, 4274.43, 4274.36, 4274.35];
@@ -535,7 +529,7 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
     }
     if(parsed.length) {
       rawTicks = parsed;
-      alert(`Loaded ${parsed.length} ticks from ${f.name}! Click 'Run Calculations'.`);
+      alert(\`Loaded \${parsed.length} ticks from \${f.name}! Click 'Run Calculations'.\`);
     }
   };
   reader.readAsText(f);
@@ -547,7 +541,6 @@ function calculate() {
   const atrMult = parseFloat(document.getElementById('atrMult').value) || 3.0;
   const mode = document.getElementById('mode').value;
 
-  // 1. Buckets -> OHLC
   let buckets = {};
   for(const t of rawTicks) {
     let b = Math.floor(t.time / tf) * tf;
@@ -568,7 +561,6 @@ function calculate() {
     };
   });
 
-  // 2. Heikin-Ashi
   let haList = [];
   let prevHaOpen = 0, prevHaClose = 0;
   for(let i=0; i<candles.length; i++) {
@@ -586,7 +578,6 @@ function calculate() {
     prevHaClose = haClose;
   }
 
-  // 3. Chandelier Exit
   let n = haList.length;
   let tr = new Array(n);
   tr[0] = haList[0].haHigh - haList[0].haLow;
@@ -654,7 +645,6 @@ function calculate() {
     enterShort: i > 0 ? sellSignal[i-1] : false
   }));
 
-  // 4. Simulate Trades
   let trades = [];
   let pos = 0, ep = 0, et = null, etStr = '';
   let cum = 0;
@@ -682,7 +672,6 @@ function calculate() {
   }
   computedTrades = trades;
 
-  // Update Stats
   document.getElementById('statTicks').innerText = rawTicks.length.toLocaleString();
   document.getElementById('statCandles').innerText = computedBars.length.toLocaleString();
   document.getElementById('statTrades').innerText = trades.length;
@@ -690,16 +679,14 @@ function calculate() {
   let wr = trades.length ? ((wins/trades.length)*100).toFixed(1) + '%' : '0%';
   document.getElementById('statWinRate').innerText = wr;
   let pnlElem = document.getElementById('statPnl');
-  pnlElem.innerText = cum >= 0 ? `+${cum.toFixed(2)}` : cum.toFixed(2);
+  pnlElem.innerText = cum >= 0 ? \`+\${cum.toFixed(2)}\` : cum.toFixed(2);
   pnlElem.className = 'val ' + (cum >= 0 ? 'green' : 'red');
 
-  // Update Slider
   let slider = document.getElementById('barSlider');
   slider.max = Math.max(0, computedBars.length - 1);
   slider.value = 0;
   updateInspector(0);
 
-  // Render Charts
   drawTicksChart();
   drawRealCandles();
   drawHaCandles();
@@ -710,36 +697,36 @@ function calculate() {
 
 function updateInspector(idx) {
   if(!computedBars.length || idx < 0 || idx >= computedBars.length) return;
-  document.getElementById('barIndexText').innerText = `#${idx}`;
+  document.getElementById('barIndexText').innerText = \`#\${idx}\`;
   let b = computedBars[idx];
   let prev = idx > 0 ? computedBars[idx-1] : null;
 
-  let html = `
-    <div class="step-row"><div class="step-label">STEP 1: Real Market OHLC (${b.timeStr})</div>
-      Open: ${b.realOpen.toFixed(2)} | High: ${b.realHigh.toFixed(2)} | Low: ${b.realLow.toFixed(2)} | Close: ${b.realClose.toFixed(2)} (${b.ticks} ticks)
+  let html = \`
+    <div class="step-row"><div class="step-label">STEP 1: Real Market OHLC (\${b.timeStr})</div>
+      Open: \${b.realOpen.toFixed(2)} | High: \${b.realHigh.toFixed(2)} | Low: \${b.realLow.toFixed(2)} | Close: \${b.realClose.toFixed(2)} (\${b.ticks} ticks)
     </div>
     <div class="step-row"><div class="step-label">STEP 2: Heikin-Ashi Formulas</div>
-      haClose = (${b.realOpen} + ${b.realHigh} + ${b.realLow} + ${b.realClose}) / 4 = <strong>${b.haClose.toFixed(3)}</strong><br>
-      haOpen = (${prev ? prev.haOpen.toFixed(3) : b.realOpen} + ${prev ? prev.haClose.toFixed(3) : b.realClose}) / 2 = <strong>${b.haOpen.toFixed(3)}</strong><br>
-      haHigh = max(H, haO, haC) = <strong>${b.haHigh.toFixed(3)}</strong> | haLow = min(L, haO, haC) = <strong>${b.haLow.toFixed(3)}</strong>
+      haClose = (\${b.realOpen} + \${b.realHigh} + \${b.realLow} + \${b.realClose}) / 4 = <strong>\${b.haClose.toFixed(3)}</strong><br>
+      haOpen = (\${prev ? prev.haOpen.toFixed(3) : b.realOpen} + \${prev ? prev.haClose.toFixed(3) : b.realClose}) / 2 = <strong>\${b.haOpen.toFixed(3)}</strong><br>
+      haHigh = max(H, haO, haC) = <strong>\${b.haHigh.toFixed(3)}</strong> | haLow = min(L, haO, haC) = <strong>\${b.haLow.toFixed(3)}</strong>
     </div>
     <div class="step-row"><div class="step-label">STEP 3: True Range & ATR</div>
-      TR = max(H-L, |H-C_prev|, |L-C_prev|) = <strong>${b.tr.toFixed(3)}</strong> | Wilder ATR = <strong>${b.atr.toFixed(3)}</strong>
+      TR = max(H-L, |H-C_prev|, |L-C_prev|) = <strong>\${b.tr.toFixed(3)}</strong> | Wilder ATR = <strong>\${b.atr.toFixed(3)}</strong>
     </div>
     <div class="step-row"><div class="step-label">STEP 4: Chandelier Bands & Ratchet</div>
-      Highest(${b.highest.toFixed(2)}) | Lowest(${b.lowest.toFixed(2)})<br>
-      Long Stop = <strong>${b.longStop.toFixed(3)}</strong> | Short Stop = <strong>${b.shortStop.toFixed(3)}</strong>
+      Highest(\${b.highest.toFixed(2)}) | Lowest(\${b.lowest.toFixed(2)})<br>
+      Long Stop = <strong>\${b.longStop.toFixed(3)}</strong> | Short Stop = <strong>\${b.shortStop.toFixed(3)}</strong>
     </div>
     <div class="step-row"><div class="step-label">STEP 5: Direction & Signals</div>
-      Direction = <strong style="color:${b.direction===1?'var(--green)':'var(--red)'}">${b.direction===1?'BULLISH (+1)':'BEARISH (-1)'}</strong> |
-      BuySignal: <strong>${b.buySignal}</strong> | SellSignal: <strong>${b.sellSignal}</strong>
+      Direction = <strong style="color:\${b.direction===1?'var(--green)':'var(--red)'}">\${b.direction===1?'BULLISH (+1)':'BEARISH (-1)'}</strong> |
+      BuySignal: <strong>\${b.buySignal}</strong> | SellSignal: <strong>\${b.sellSignal}</strong>
     </div>
     <div class="step-row"><div class="step-label">STEP 6: Execution on Bar Open (N+1)</div>
-      ${b.enterLong ? '<span style="color:var(--green);font-weight:bold;">ENTER LONG EXECUTED @ ' + b.realOpen.toFixed(2) + '</span>' : ''}
-      ${b.enterShort ? '<span style="color:var(--red);font-weight:bold;">ENTER SHORT EXECUTED @ ' + b.realOpen.toFixed(2) + '</span>' : ''}
-      ${!b.enterLong && !b.enterShort ? '<span style="color:var(--muted)">No position entry on this bar open.</span>' : ''}
+      \${b.enterLong ? '<span style="color:var(--green);font-weight:bold;">ENTER LONG EXECUTED @ ' + b.realOpen.toFixed(2) + '</span>' : ''}
+      \${b.enterShort ? '<span style="color:var(--red);font-weight:bold;">ENTER SHORT EXECUTED @ ' + b.realOpen.toFixed(2) + '</span>' : ''}
+      \${!b.enterLong && !b.enterShort ? '<span style="color:var(--muted)">No position entry on this bar open.</span>' : ''}
     </div>
-  `;
+  \`;
   document.getElementById('inspectorDetails').innerHTML = html;
 }
 
@@ -813,7 +800,6 @@ function drawHaCandles() {
   let range = Math.max(0.1, maxP - minP);
   let cw = Math.max(2, (w / computedBars.length) * 0.7);
 
-  // Stop lines
   for(let i=0; i<computedBars.length; i++) {
     let b = computedBars[i];
     let cx = (i / Math.max(1, computedBars.length - 1)) * (w - 30) + 15;
@@ -826,7 +812,6 @@ function drawHaCandles() {
     }
   }
 
-  // Candles
   for(let i=0; i<computedBars.length; i++) {
     let b = computedBars[i];
     let cx = (i / Math.max(1, computedBars.length - 1)) * (w - 30) + 15;
@@ -910,16 +895,16 @@ function renderTradesTable() {
   let html = '';
   for(let t of computedTrades) {
     let isWin = t.pnl > 0;
-    html += `<tr>
-      <td>${t.id}</td>
-      <td><span class="tag ${t.side==='LONG'?'buy':'sell'}">${t.side}</span></td>
-      <td>${t.entryTime}</td>
-      <td>${t.exitTime}</td>
-      <td>${t.entryPrice.toFixed(2)}</td>
-      <td>${t.exitPrice.toFixed(2)}</td>
-      <td style="color:${isWin?'var(--green)':'var(--red)'};font-weight:bold;">${isWin?'+':''}${t.pnl.toFixed(2)}</td>
-      <td style="font-weight:bold;">${t.cumPnl>=0?'+':''}${t.cumPnl.toFixed(2)}</td>
-    </tr>`;
+    html += \`<tr>
+      <td>\${t.id}</td>
+      <td><span class="tag \${t.side==='LONG'?'buy':'sell'}">\${t.side}</span></td>
+      <td>\${t.entryTime}</td>
+      <td>\${t.exitTime}</td>
+      <td>\${t.entryPrice.toFixed(2)}</td>
+      <td>\${t.exitPrice.toFixed(2)}</td>
+      <td style="color:\${isWin?'var(--green)':'var(--red)'};font-weight:bold;">\${isWin?'+':''}\${t.pnl.toFixed(2)}</td>
+      <td style="font-weight:bold;">\${t.cumPnl>=0?'+':''}\${t.cumPnl.toFixed(2)}</td>
+    </tr>\`;
   }
   tb.innerHTML = html;
 }
@@ -941,13 +926,13 @@ calculate();
             self.end_headers()
             self.wfile.write(html_page.encode("utf-8"))
 
-    print(f"\nStarting local GUI server at http://localhost:{port} ...")
+    print(f"\\nStarting local GUI server at http://localhost:{port} ...")
     try:
         with socketserver.TCPServer(("", port), Handler) as httpd:
             webbrowser.open(f"http://localhost:{port}")
             httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nServer stopped.")
+        print("\\nServer stopped.")
 
 
 # ============================================================================
@@ -986,11 +971,11 @@ def main():
                 w.writerow([t, p])
 
     ticks = load_ticks_raw(args.csv)
-    print(f"\n[1/5] Loaded {len(ticks):,} ticks from {args.csv}")
+    print(f"\\n[1/5] Loaded {len(ticks):,} ticks from {args.csv}")
 
     for tf in args.tf:
         label = f"{tf//60}m ({tf}s)" if tf >= 60 else f"{tf}s"
-        print("\n" + "-" * 75)
+        print("\\n" + "-" * 75)
         print(f"  TIMEFRAME PIPELINE: {label}")
         print("-" * 75)
 
@@ -1015,17 +1000,18 @@ def main():
         print(f"      Win Rate                 : {win_rate:.1f}%")
 
         if trades:
-            print("\n  Trade Log Sample:")
+            print("\\n  Trade Log Sample:")
             print(f"  {'#':<4} {'SIDE':<6} {'ENTRY':<10} {'EXIT':<10} {'IN PRICE':>10} {'OUT PRICE':>10} {'PNL':>10}")
             for t in trades[:5]:
                 print(f"  {t['id']:<4} {t['side']:<6} {t['entry_time']:<10} {t['exit_time']:<10} {t['entry_price']:>10.2f} {t['exit_price']:>10.2f} {t['pnl']:>+10.2f}")
             if len(trades) > 5:
                 print(f"  ... and {len(trades) - 5} more trades.")
 
-    print("\n" + "=" * 80)
+    print("\\n" + "=" * 80)
     print("  Pipeline Completed Successfully.")
     print("=" * 80)
 
 
 if __name__ == "__main__":
     main()
+`;
