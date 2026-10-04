@@ -20,6 +20,7 @@ import {
   ticksToCandles,
   toHeikinAshi,
   computeChandelierExit,
+  computeNoiseReductionAnalytics,
   simulateTrades
 } from './utils/engine';
 import { TopNav, ActiveTab } from './components/TopNav';
@@ -123,6 +124,11 @@ export default function App() {
       },
     };
   }, [ticks, config]);
+
+  // Noise Reduction Statistics across bars
+  const noiseStats = useMemo(() => {
+    return computeNoiseReductionAnalytics(bars, config.useCloseForExtremums);
+  }, [bars, config.useCloseForExtremums]);
 
   // Adjust selected candle if out of bounds
   useEffect(() => {
@@ -281,6 +287,7 @@ export default function App() {
           config={config}
           setConfig={setConfig}
           metrics={metrics}
+          noiseStats={noiseStats}
           totalTicks={ticks.length}
           totalCandles={bars.length}
           onSelectDataset={handleSelectDataset}
@@ -293,6 +300,56 @@ export default function App() {
 
         {/* Dynamic Center Viewport */}
         <main className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Top Pipeline Architecture & Noise Reduction Flow Banner */}
+          <div className="bg-[#0e1422] border-b border-[#1e293b] px-4 py-2 flex items-center justify-between text-xs font-mono overflow-x-auto gap-4 shrink-0 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider shrink-0">
+                Quant Pipeline:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="px-2 py-0.5 rounded bg-sky-950/80 text-sky-300 border border-sky-800/60 font-medium text-[11px]">
+                  1. Candle (OHLC)
+                </span>
+                <span className="text-slate-500">➔</span>
+                <span className="px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-medium text-[11px]">
+                  2. HEIKIN_ASHI
+                </span>
+                <span className="text-slate-500">➔</span>
+                <button
+                  onClick={() => setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }))}
+                  className={`px-2.5 py-0.5 rounded font-bold border transition-all flex items-center gap-1.5 cursor-pointer text-[11px] ${
+                    config.useCloseForExtremums
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-sm shadow-cyan-900/40 hover:bg-cyan-500/30'
+                      : 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
+                  }`}
+                  title="Click to toggle: Use Close Price for Extremums (filters out noise wicks)"
+                >
+                  <span>🛡️ 3. Extremums (Filter: {config.useCloseForExtremums ? 'ON · Wicks Cut' : 'OFF · Wicks Kept'})</span>
+                </button>
+                <span className="text-slate-500">➔</span>
+                <span className="px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60 font-medium text-[11px]">
+                  4. Chandelier Exit ({config.atrPeriod} · {config.atrMultiplier}x)
+                </span>
+                <span className="text-slate-500">➔</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-medium text-[11px]">
+                  5. Buy/Sell Signals (N+1 Open)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 text-[11px]">
+              <div>
+                <span className="text-slate-400">Wick Noise Filtered: </span>
+                <span className="text-cyan-300 font-bold">{noiseStats.totalNoisePoints.toFixed(1)} pts</span>
+                <span className="text-slate-500 text-[10px]"> ({noiseStats.noiseReductionPercent.toFixed(1)}%)</span>
+              </div>
+              <div className="hidden lg:block">
+                <span className="text-slate-400">Wick Spikes Filtered: </span>
+                <span className="text-emerald-400 font-bold">{noiseStats.wickSpikesFilteredCount} bars</span>
+              </div>
+            </div>
+          </div>
+
           {activeTab === 'charts' && (
             <ChartPanels
               ticks={ticks}
@@ -300,6 +357,7 @@ export default function App() {
               trades={trades}
               config={config}
               setConfig={setConfig}
+              noiseStats={noiseStats}
               selectedCandleIndex={selectedCandleIndex}
               onSelectCandle={setSelectedCandleIndex}
               onOpenStepInspector={(idx) => {

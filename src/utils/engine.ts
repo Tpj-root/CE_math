@@ -251,66 +251,71 @@ export function computeMA(
 }
 
 /**
- * Computes Chandelier Exit over Heikin-Ashi candles with Extremum Engine.
+ * Pipeline Stage 3: Extremums Engine & Noise Reduction
+ * 
+ * Flow: Candle (OHLC) ➔ Heikin-Ashi ➔ Extremums (Noise Filter) ➔ Chandelier Exit
+ *
+ * “Use Close Price for Extremums” means:
+ * When calculating the highest high and lowest low used by the Chandelier Exit,
+ * use the candle's Close price instead of its High/Low wick.
+ *
+ * Without “Use Close Price” (OFF):
+ *   Highest = max(High_1, High_2, ..., High_22)
+ *   Lowest  = min(Low_1, Low_2, ..., Low_22)
+ *   -> Candle wicks are included (contains noise).
+ *
+ * With “Use Close Price” = ON:
+ *   Highest = max(Close_1, Close_2, ..., Close_22)
+ *   Lowest  = min(Close_1, Close_2, ..., Close_22)
+ *   -> Wicks are ignored for finding the extreme (pure noise reduction).
  */
-export function computeChandelierExit(
+export function computeExtremums(
   ha: HeikinAshiCandle[],
   atrPeriod: number = 22,
-  atrMult: number = 3.0,
-  algorithm: 'tradingview' | 'classic' | 'user_original' = 'tradingview',
   useCloseForExtremums: boolean = false,
   extremumFormula: import('../types/trading').ExtremumFormulaType = 'close_extremum',
   maType: import('../types/trading').MovingAverageType = 'EMA',
   maLength: number = 20,
   extremumLookback: number = 5
-): ChandelierBar[] {
+) {
   const n = ha.length;
-  if (n === 0) return [];
-
-  // Step 1: True Range
-  const tr = new Array<number>(n);
-  tr[0] = ha[0].haHigh - ha[0].haLow;
-
-  for (let i = 1; i < n; i++) {
-    const h = ha[i].haHigh;
-    const l = ha[i].haLow;
-    const prevClose = ha[i - 1].haClose;
-    tr[i] = Math.max(h - l, Math.abs(h - prevClose), Math.abs(l - prevClose));
+  if (n === 0) {
+    return {
+      highestClose: [] as number[],
+      lowestClose: [] as number[],
+      highestHigh: [] as number[],
+      lowestLow: [] as number[],
+      highest: [] as number[],
+      lowest: [] as number[],
+      activeUpperAnchor: [] as number[],
+      activeLowerAnchor: [] as number[],
+      prevHighs: [] as number[],
+      prevLows: [] as number[],
+      maValues: [] as number[],
+      crests: [] as boolean[],
+      troughs: [] as boolean[],
+      lastCrestVal: [] as number[],
+      lastTroughVal: [] as number[],
+      pivotHighs: [] as boolean[],
+      pivotLows: [] as boolean[],
+      activePivotHigh: [] as number[],
+      activePivotLow: [] as number[],
+      upperWickNoise: [] as number[],
+      lowerWickNoise: [] as number[],
+      totalWickNoise: [] as number[],
+    };
   }
 
-  // Step 2: Wilder's ATR (TradingView uses ta.rma(tr, length))
-  const atr = new Array<number>(n);
-  if (algorithm === 'user_original') {
-    for (let i = 0; i < n; i++) {
-      if (i < atrPeriod - 1) {
-        atr[i] = NaN;
-      } else if (i === atrPeriod - 1) {
-        let sum = 0;
-        for (let j = 0; j < atrPeriod; j++) sum += tr[j];
-        atr[i] = sum / atrPeriod;
-      } else {
-        atr[i] = (atr[i - 1] * (atrPeriod - 1) + tr[i]) / atrPeriod;
-      }
-    }
-  } else {
-    let runningAtr = tr[0];
-    atr[0] = runningAtr;
-    for (let i = 1; i < n; i++) {
-      runningAtr = (runningAtr * (atrPeriod - 1) + tr[i]) / atrPeriod;
-      atr[i] = runningAtr;
-    }
-  }
-
-  // Step 3: Rolling Highest & Lowest
-  // Formula 1: "Use Close Price for Extremums"
-  // If ON:  Highest = max(Close), Lowest = min(Close) (wicks ignored)
-  // If OFF: Highest = max(High),  Lowest = min(Low)   (wicks included)
+  // Rolling Highest & Lowest
   const highestHigh = new Array<number>(n);
   const lowestLow = new Array<number>(n);
   const highestClose = new Array<number>(n);
   const lowestClose = new Array<number>(n);
   const highest = new Array<number>(n);
   const lowest = new Array<number>(n);
+  const upperWickNoise = new Array<number>(n);
+  const lowerWickNoise = new Array<number>(n);
+  const totalWickNoise = new Array<number>(n);
 
   for (let i = 0; i < n; i++) {
     const startIdx = Math.max(0, i - atrPeriod + 1);
@@ -333,6 +338,12 @@ export function computeChandelierExit(
 
     highest[i] = useCloseForExtremums ? cMax : hMax;
     lowest[i] = useCloseForExtremums ? cMin : lMin;
+
+    const uNoise = Math.max(0, ha[i].haHigh - ha[i].haClose);
+    const lNoise = Math.max(0, ha[i].haClose - ha[i].haLow);
+    upperWickNoise[i] = uNoise;
+    lowerWickNoise[i] = lNoise;
+    totalWickNoise[i] = uNoise + lNoise;
   }
 
   // Pre-calculate Extremum Curves for Formula 2, 3, 4
@@ -435,6 +446,95 @@ export function computeChandelierExit(
     }
   }
 
+  return {
+    highestHigh,
+    lowestLow,
+    highestClose,
+    lowestClose,
+    highest,
+    lowest,
+    activeUpperAnchor,
+    activeLowerAnchor,
+    prevHighs,
+    prevLows,
+    maValues,
+    crests,
+    troughs,
+    lastCrestVal,
+    lastTroughVal,
+    pivotHighs,
+    pivotLows,
+    activePivotHigh,
+    activePivotLow,
+    upperWickNoise,
+    lowerWickNoise,
+    totalWickNoise,
+  };
+}
+
+/**
+ * Computes Chandelier Exit over Heikin-Ashi candles with Extremum Engine.
+ * Follows the pipeline: Candle ➔ Heikin-Ashi ➔ Extremums ➔ Chandelier Exit
+ */
+export function computeChandelierExit(
+  ha: HeikinAshiCandle[],
+  atrPeriod: number = 22,
+  atrMult: number = 3.0,
+  algorithm: 'tradingview' | 'classic' | 'user_original' = 'tradingview',
+  useCloseForExtremums: boolean = false,
+  extremumFormula: import('../types/trading').ExtremumFormulaType = 'close_extremum',
+  maType: import('../types/trading').MovingAverageType = 'EMA',
+  maLength: number = 20,
+  extremumLookback: number = 5
+): ChandelierBar[] {
+  const n = ha.length;
+  if (n === 0) return [];
+
+  // Step 1: True Range
+  const tr = new Array<number>(n);
+  tr[0] = ha[0].haHigh - ha[0].haLow;
+
+  for (let i = 1; i < n; i++) {
+    const h = ha[i].haHigh;
+    const l = ha[i].haLow;
+    const prevClose = ha[i - 1].haClose;
+    tr[i] = Math.max(h - l, Math.abs(h - prevClose), Math.abs(l - prevClose));
+  }
+
+  // Step 2: Wilder's ATR (TradingView uses ta.rma(tr, length))
+  const atr = new Array<number>(n);
+  if (algorithm === 'user_original') {
+    for (let i = 0; i < n; i++) {
+      if (i < atrPeriod - 1) {
+        atr[i] = NaN;
+      } else if (i === atrPeriod - 1) {
+        let sum = 0;
+        for (let j = 0; j < atrPeriod; j++) sum += tr[j];
+        atr[i] = sum / atrPeriod;
+      } else {
+        atr[i] = (atr[i - 1] * (atrPeriod - 1) + tr[i]) / atrPeriod;
+      }
+    }
+  } else {
+    let runningAtr = tr[0];
+    atr[0] = runningAtr;
+    for (let i = 1; i < n; i++) {
+      runningAtr = (runningAtr * (atrPeriod - 1) + tr[i]) / atrPeriod;
+      atr[i] = runningAtr;
+    }
+  }
+
+  // Step 3: Extremums Engine (Noise Reduction Filter)
+  const ext = computeExtremums(
+    ha,
+    atrPeriod,
+    useCloseForExtremums,
+    extremumFormula,
+    maType,
+    maLength,
+    extremumLookback
+  );
+
   // Step 4: Ratcheting Stops & Direction Flip
   const longStopRaw = new Array<number>(n);
   const shortStopRaw = new Array<number>(n);
@@ -446,8 +546,8 @@ export function computeChandelierExit(
 
   for (let i = 0; i < n; i++) {
     const curAtr = isNaN(atr[i]) ? tr[i] : atr[i];
-    const curHighest = activeUpperAnchor[i];
-    const curLowest = activeLowerAnchor[i];
+    const curHighest = ext.activeUpperAnchor[i];
+    const curLowest = ext.activeLowerAnchor[i];
     const close = ha[i].haClose;
 
     const lsRaw = curHighest - atrMult * curAtr;
@@ -556,17 +656,26 @@ export function computeChandelierExit(
   // Build final bars with Extremum data
   const result: ChandelierBar[] = [];
   for (let i = 0; i < n; i++) {
-    const rangeCrossLong = i > 0 && prevLows[i] > maValues[i] && prevLows[i - 1] <= maValues[i - 1];
-    const rangeCrossShort = i > 0 && prevHighs[i] < maValues[i] && prevHighs[i - 1] >= maValues[i - 1];
+    const rangeCrossLong = i > 0 && ext.prevLows[i] > ext.maValues[i] && ext.prevLows[i - 1] <= ext.maValues[i - 1];
+    const rangeCrossShort = i > 0 && ext.prevHighs[i] < ext.maValues[i] && ext.prevHighs[i - 1] >= ext.maValues[i - 1];
+
+    const hClose = ext.highestClose[i];
+    const lClose = ext.lowestClose[i];
+    const hHigh = ext.highestHigh[i];
+    const lLow = ext.lowestLow[i];
+
+    const uNoiseDelta = hHigh - hClose;
+    const lNoiseDelta = lClose - lLow;
+    const wickSpike = ha[i].haHigh > hClose || ha[i].haLow < lClose;
 
     result.push({
       ...ha[i],
       tr: tr[i],
       atr: isNaN(atr[i]) ? tr[i] : atr[i],
-      highest: activeUpperAnchor[i],
-      lowest: activeLowerAnchor[i],
-      highestClose: highestClose[i],
-      lowestClose: lowestClose[i],
+      highest: ext.activeUpperAnchor[i],
+      lowest: ext.activeLowerAnchor[i],
+      highestClose: hClose,
+      lowestClose: lClose,
       longStopRaw: longStopRaw[i],
       shortStopRaw: shortStopRaw[i],
       longStop: longStop[i],
@@ -577,26 +686,81 @@ export function computeChandelierExit(
       enterLong: i > 0 ? buySignal[i - 1] : false,
       enterShort: i > 0 ? sellSignal[i - 1] : false,
       extremum: {
-        highestClose: highestClose[i],
-        lowestClose: lowestClose[i],
-        highestHigh: highestHigh[i],
-        lowestLow: lowestLow[i],
-        prevHigh: prevHighs[i],
-        prevLow: prevLows[i],
-        maValue: maValues[i],
-        maTrendColor: (i > 0 && maValues[i] >= maValues[i - 1]) ? 'green' : 'red',
+        highestClose: hClose,
+        lowestClose: lClose,
+        highestHigh: hHigh,
+        lowestLow: lLow,
+        upperWickNoise: ext.upperWickNoise[i],
+        lowerWickNoise: ext.lowerWickNoise[i],
+        totalWickNoise: ext.totalWickNoise[i],
+        highestHighNoiseDelta: uNoiseDelta,
+        lowestLowNoiseDelta: lNoiseDelta,
+        wickSpikeFiltered: wickSpike,
+        prevHigh: ext.prevHighs[i],
+        prevLow: ext.prevLows[i],
+        maValue: ext.maValues[i],
+        maTrendColor: (i > 0 && ext.maValues[i] >= ext.maValues[i - 1]) ? 'green' : 'red',
         rangeCrossLong,
         rangeCrossShort,
-        isCrest: crests[i],
-        isTrough: troughs[i],
-        extremumPointPrice: crests[i] || troughs[i] ? maValues[i - 1] : undefined,
-        isPivotHigh: pivotHighs[i],
-        isPivotLow: pivotLows[i],
+        isCrest: ext.crests[i],
+        isTrough: ext.troughs[i],
+        extremumPointPrice: ext.crests[i] || ext.troughs[i] ? ext.maValues[i - 1] : undefined,
+        isPivotHigh: ext.pivotHighs[i],
+        isPivotLow: ext.pivotLows[i],
       },
     });
   }
 
   return result;
+}
+
+/**
+ * Calculates aggregate noise reduction statistics for the dataset.
+ */
+export function computeNoiseReductionAnalytics(
+  bars: ChandelierBar[],
+  useCloseForExtremums: boolean
+): import('../types/trading').NoiseReductionStats {
+  const n = bars.length;
+  if (n === 0) {
+    return {
+      useCloseForExtremums,
+      totalUpperWickNoise: 0,
+      totalLowerWickNoise: 0,
+      totalNoisePoints: 0,
+      avgNoisePerBar: 0,
+      wickSpikesFilteredCount: 0,
+      noiseReductionPercent: 0,
+    };
+  }
+
+  let totalUpper = 0;
+  let totalLower = 0;
+  let spikesCount = 0;
+  let totalBarRange = 0;
+
+  for (const b of bars) {
+    totalUpper += b.extremum.upperWickNoise;
+    totalLower += b.extremum.lowerWickNoise;
+    if (b.extremum.wickSpikeFiltered) {
+      spikesCount++;
+    }
+    totalBarRange += Math.max(0.0001, b.haHigh - b.haLow);
+  }
+
+  const totalNoise = totalUpper + totalLower;
+  const avgNoise = totalNoise / n;
+  const pct = totalBarRange > 0 ? (totalNoise / totalBarRange) * 100 : 0;
+
+  return {
+    useCloseForExtremums,
+    totalUpperWickNoise: totalUpper,
+    totalLowerWickNoise: totalLower,
+    totalNoisePoints: totalNoise,
+    avgNoisePerBar: avgNoise,
+    wickSpikesFilteredCount: spikesCount,
+    noiseReductionPercent: pct,
+  };
 }
 
 /**
@@ -1035,6 +1199,13 @@ export function getDetailedStepMath(
     highestClose: hClose,
     lowestClose: lClose,
     extremumBasisText,
+    candleUpperWickNoise: bar.extremum.upperWickNoise,
+    candleLowerWickNoise: bar.extremum.lowerWickNoise,
+    candleTotalWickNoise: bar.extremum.totalWickNoise,
+    noiseReductionBenefit: useClose
+      ? `Noise Filter Active: ${bar.extremum.highestHighNoiseDelta.toFixed(2)} pts of upper wick noise and ${bar.extremum.lowestLowNoiseDelta.toFixed(2)} pts of lower wick noise were filtered out to prevent whipsaw.`
+      : `Noise Filter Inactive: Stop anchors include raw candle wicks, leaving stops vulnerable to sudden momentary spike noise.`,
+    noiseExampleText: `Example: High=105, Close=101, Low=98 ➔ If Close=OFF, Highest=105; If Close=ON, Highest=101 (wicks ignored to reduce noise).`,
     longStopRaw,
     shortStopRaw,
     longStopRatchetFormula,

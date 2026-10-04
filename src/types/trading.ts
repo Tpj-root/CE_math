@@ -37,6 +37,13 @@ export interface ExtremumData {
   lowestClose: number;
   highestHigh: number;
   lowestLow: number;
+  // Noise Reduction Fields:
+  upperWickNoise: number;        // haHigh - haClose
+  lowerWickNoise: number;        // haClose - haLow
+  totalWickNoise: number;        // upper + lower
+  highestHighNoiseDelta: number; // highestHigh - highestClose
+  lowestLowNoiseDelta: number;   // lowestClose - lowestLow
+  wickSpikeFiltered: boolean;    // true if high/low went beyond close extremum
   // For Range MA Crossover:
   prevHigh: number;
   prevLow: number;
@@ -51,6 +58,16 @@ export interface ExtremumData {
   // For S/R Levels:
   isPivotHigh: boolean;
   isPivotLow: boolean;
+}
+
+export interface NoiseReductionStats {
+  useCloseForExtremums: boolean;
+  totalUpperWickNoise: number;
+  totalLowerWickNoise: number;
+  totalNoisePoints: number;
+  avgNoisePerBar: number;
+  wickSpikesFilteredCount: number;
+  noiseReductionPercent: number;
 }
 
 export interface ChandelierBar extends HeikinAshiCandle {
@@ -161,13 +178,18 @@ export interface StepMathDetail {
   atrFormula: string;
   atr: number;
 
-  // Step 4: Chandelier Bands
+  // Step 4: Extremums Engine & Noise Reduction
   useCloseForExtremums: boolean;
   highestHigh: number;
   lowestLow: number;
   highestClose: number;
   lowestClose: number;
   extremumBasisText: string;
+  candleUpperWickNoise: number;
+  candleLowerWickNoise: number;
+  candleTotalWickNoise: number;
+  noiseReductionBenefit: string;
+  noiseExampleText: string;
   longStopRaw: number;
   shortStopRaw: number;
   longStopRatchetFormula: string;

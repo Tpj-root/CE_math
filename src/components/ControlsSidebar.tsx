@@ -14,6 +14,7 @@ interface ControlsSidebarProps {
   config: StrategyConfig;
   setConfig: React.Dispatch<React.SetStateAction<StrategyConfig>>;
   metrics: BacktestMetrics;
+  noiseStats?: import('../types/trading').NoiseReductionStats;
   totalTicks: number;
   totalCandles: number;
   onSelectDataset: (preset: 'official' | 'trending' | 'choppy' | 'volatility') => void;
@@ -28,6 +29,7 @@ export const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
   config,
   setConfig,
   metrics,
+  noiseStats,
   totalTicks,
   totalCandles,
   onSelectDataset,
@@ -277,45 +279,98 @@ export const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
           </div>
         </div>
 
-        {/* Extremums Engine & Formula Selection */}
-        <div className="space-y-2.5 pt-2 border-t border-[#1e293b]">
+        {/* Extremums Engine & Noise Reduction */}
+        <div className="space-y-3 pt-2.5 border-t border-[#1e293b]">
+          {/* Pipeline Flow Indicator */}
+          <div className="bg-[#111928] border border-[#1e2b40] rounded-lg p-2 space-y-1">
+            <span className="text-[10px] text-slate-400 font-mono block font-semibold">
+              QUANT PIPELINE ARCHITECTURE:
+            </span>
+            <div className="flex items-center text-[10px] font-mono text-slate-300 gap-1 flex-wrap">
+              <span className="px-1.5 py-0.5 rounded bg-sky-950/80 text-sky-300 border border-sky-800/60">1. Candle</span>
+              <span className="text-slate-500">➔</span>
+              <span className="px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">2. HEIKIN_ASHI</span>
+              <span className="text-slate-500">➔</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 font-bold border border-cyan-500/50">3. Extremums (Filter)</span>
+              <span className="text-slate-500">➔</span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60">4. Chandelier</span>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-100 flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
-              Extremums Engine
+            <span className="font-semibold text-slate-100 flex items-center gap-1.5 text-xs">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
+              Extremums Noise Reduction
             </span>
             <button
               onClick={() => setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }))}
-              className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-all border ${
+              className={`px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all border ${
                 config.useCloseForExtremums
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
-                  : 'bg-[#131d2e] text-slate-400 border-[#273752]'
+                  ? 'bg-cyan-500/25 text-cyan-200 border-cyan-400 shadow-sm shadow-cyan-950'
+                  : 'bg-[#131d2e] text-slate-400 border-[#273752] hover:text-slate-200'
               }`}
               title="When ON: highest/lowest uses Close instead of wicks. When OFF: wicks are included."
             >
-              Close Extremum: {config.useCloseForExtremums ? 'ON' : 'OFF'}
+              🛡️ Close Filter: {config.useCloseForExtremums ? 'ON (Wicks Cut)' : 'OFF (Wicks Kept)'}
             </button>
           </div>
 
-          <div className="text-[11px] text-slate-400">
-            {config.useCloseForExtremums ? (
-              <span className="text-cyan-300">
-                Wicks ignored: Highest = max(Close), Lowest = min(Close)
+          {/* Noise Explanation & Real-time Metrics Card */}
+          <div className={`p-2.5 rounded-lg border text-[11px] font-mono space-y-1.5 ${
+            config.useCloseForExtremums
+              ? 'bg-[#0f1b2b] border-cyan-500/40 text-cyan-200'
+              : 'bg-[#181a24] border-amber-500/30 text-amber-200'
+          }`}>
+            <div className="flex items-center justify-between font-bold text-[10px]">
+              <span>{config.useCloseForExtremums ? '✓ NOISE REDUCTION ACTIVE' : '⚠ NOISE REDUCTION OFF'}</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/40">
+                {config.useCloseForExtremums ? 'Wicks Ignored' : 'Wicks Included'}
               </span>
-            ) : (
-              <span className="text-amber-300">
-                Wicks included: Highest = max(High), Lowest = min(Low)
-              </span>
+            </div>
+            
+            <p className="text-[10px] text-slate-300 leading-relaxed font-sans">
+              {config.useCloseForExtremums ? (
+                <>
+                  <strong className="text-cyan-300">Highest = max(Close)</strong> &amp; <strong className="text-cyan-300">Lowest = min(Close)</strong>. Sudden wick spikes are filtered out so trailing stops don&apos;t get tripped by market noise.
+                </>
+              ) : (
+                <>
+                  <strong className="text-amber-300">Highest = max(High)</strong> &amp; <strong className="text-amber-300">Lowest = min(Low)</strong>. Full wicks are included, making stops susceptible to liquidity spikes.
+                </>
+              )}
+            </p>
+
+            {noiseStats && (
+              <div className="pt-1.5 border-t border-slate-700/50 grid grid-cols-2 gap-1 text-[10px]">
+                <div className="bg-black/30 p-1 rounded">
+                  <span className="text-slate-400 text-[9px] block">Wick Noise Filtered:</span>
+                  <span className="text-cyan-300 font-bold">{noiseStats.totalNoisePoints.toFixed(1)} pts</span>
+                </div>
+                <div className="bg-black/30 p-1 rounded">
+                  <span className="text-slate-400 text-[9px] block">Wick Noise Ratio:</span>
+                  <span className="text-emerald-400 font-bold">{noiseStats.noiseReductionPercent.toFixed(1)}% of bar</span>
+                </div>
+              </div>
             )}
+
+            <div className="text-[9px] text-slate-400 pt-0.5">
+              <span>Example (H=105, C=101, L=98): </span>
+              <span className={config.useCloseForExtremums ? 'text-cyan-300 font-bold' : 'text-amber-300 font-bold'}>
+                {config.useCloseForExtremums ? 'Highest = 101' : 'Highest = 105'}
+              </span>
+            </div>
           </div>
 
           {/* 4 Radio Buttons for Formulas */}
           <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">
+              Select Extremum Formula:
+            </span>
             {[
               {
                 id: 'close_extremum',
-                title: 'F1: Close Extremums (User Formula)',
-                sub: 'max/min of Close vs High/Low wicks',
+                title: 'F1: Close Extremums (User Given Formula)',
+                sub: 'max/min of Close vs High/Low wicks (Noise Reduction)',
               },
               {
                 id: 'range_ma_crossover',

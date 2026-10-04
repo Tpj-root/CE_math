@@ -268,14 +268,14 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
           </div>
         </div>
 
-        {/* STEP 4: EXTREMUMS ENGINE & CHANDELIER BANDS */}
+        {/* STEP 4: EXTREMUMS ENGINE & NOISE REDUCTION */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-[#1e293b] pb-2 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-xs font-semibold">
                 STEP 4
               </span>
-              <span className="text-slate-100 font-semibold text-xs">Extremums Engine &amp; Chandelier Ratchet</span>
+              <span className="text-slate-100 font-semibold text-xs">Extremums Engine &amp; Noise Reduction Filter</span>
             </div>
             <div className="flex items-center gap-2 font-mono text-xs">
               <span className="text-cyan-400">
@@ -286,14 +286,14 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
             </div>
           </div>
 
-          {/* Extremums Engine Rule Explanation */}
+          {/* Extremums Engine Rule & Noise Filter Explanation */}
           <div className="p-3 bg-[#131d2e] rounded-lg border border-[#223049] space-y-2 text-xs">
             <div className="flex items-center justify-between text-slate-300 font-semibold">
               <span className="text-cyan-300 font-mono">{detail.extremumFormulaName}</span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                detail.useCloseForExtremums ? 'bg-cyan-500/20 text-cyan-300' : 'bg-amber-500/20 text-amber-300'
+                detail.useCloseForExtremums ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               }`}>
-                {detail.useCloseForExtremums ? 'Use Close Price = ON' : 'Use Close Price = OFF'}
+                {detail.useCloseForExtremums ? '🛡️ Use Close Price = ON (Noise Filter Active)' : '⚠ Use Close Price = OFF (Raw Wicks Included)'}
               </span>
             </div>
 
@@ -301,15 +301,21 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
               {detail.extremumBasisText}
             </p>
 
-            <div className="p-2 bg-[#0b101b] rounded border border-[#1b263b] font-mono text-[11px] text-slate-300 space-y-1">
+            <div className="p-2 bg-[#0b101b] rounded border border-[#1b263b] font-mono text-[11px] text-slate-300 space-y-1.5">
               <div className="text-slate-400 text-[10px]">Mathematical Formula:</div>
-              <div className="text-cyan-300">{detail.extremumFormulaMath}</div>
+              <div className="text-cyan-300 font-semibold">{detail.extremumFormulaMath}</div>
               <div className="text-slate-400 text-[10px] pt-1">Extremum Values Breakdown:</div>
               <div className="text-emerald-300 text-[10px]">{detail.extremumValuesSummary}</div>
+              <div className="text-sky-300 text-[10px] pt-1 border-t border-slate-800">
+                {detail.noiseReductionBenefit}
+              </div>
+              <div className="text-slate-400 text-[10px] italic">
+                {detail.noiseExampleText}
+              </div>
             </div>
           </div>
 
-          {/* Side by side: Close Extremums vs High/Low Extremums */}
+          {/* This Candle's Specific Wick Noise vs Rolling Extremums */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
             <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
               <span className="text-slate-400 text-[10px] block">Rolling Highest Close</span>
@@ -318,7 +324,7 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
             <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
               <span className="text-slate-400 text-[10px] block">Rolling Highest High</span>
               <span className="text-amber-300 font-semibold">{detail.highestHigh.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-500 block">Wick: +{(detail.highestHigh - detail.highestClose).toFixed(2)}</span>
+              <span className="text-[10px] text-cyan-400 block">Wick Noise: +{(detail.highestHigh - detail.highestClose).toFixed(2)} pts</span>
             </div>
             <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
               <span className="text-slate-400 text-[10px] block">Rolling Lowest Close</span>
@@ -327,7 +333,23 @@ export const StepInspector: React.FC<StepInspectorProps> = ({
             <div className="p-2 bg-[#131d2e] rounded border border-[#223049]">
               <span className="text-slate-400 text-[10px] block">Rolling Lowest Low</span>
               <span className="text-amber-300 font-semibold">{detail.lowestLow.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-500 block">Wick: -{(detail.lowestClose - detail.lowestLow).toFixed(2)}</span>
+              <span className="text-[10px] text-cyan-400 block">Wick Noise: -{(detail.lowestClose - detail.lowestLow).toFixed(2)} pts</span>
+            </div>
+          </div>
+
+          {/* Candle Wick Noise Isolation */}
+          <div className="p-2.5 bg-[#0f172a] rounded-lg border border-[#1e293b] flex items-center justify-between text-xs font-mono flex-wrap gap-2">
+            <span className="text-slate-400 text-[11px]">Candle #{detail.candleIndex} Instant Wick Noise:</span>
+            <div className="flex items-center gap-3">
+              <span className="text-amber-300 text-[11px]">
+                Upper Wick: <strong className="text-slate-200">+{detail.candleUpperWickNoise.toFixed(2)}</strong>
+              </span>
+              <span className="text-amber-300 text-[11px]">
+                Lower Wick: <strong className="text-slate-200">+{detail.candleLowerWickNoise.toFixed(2)}</strong>
+              </span>
+              <span className="text-cyan-300 text-[11px] font-bold">
+                Total Wick Noise: {detail.candleTotalWickNoise.toFixed(2)} pts
+              </span>
             </div>
           </div>
 

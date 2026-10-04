@@ -13,6 +13,7 @@ interface ChartPanelsProps {
   trades: Trade[];
   config: StrategyConfig;
   setConfig?: React.Dispatch<React.SetStateAction<StrategyConfig>>;
+  noiseStats?: import('../types/trading').NoiseReductionStats;
   selectedCandleIndex: number;
   onSelectCandle: (index: number) => void;
   onOpenStepInspector: (index: number) => void;
@@ -24,6 +25,7 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
   trades,
   config,
   setConfig,
+  noiseStats,
   selectedCandleIndex,
   onSelectCandle,
   onOpenStepInspector,
@@ -322,14 +324,24 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
         {showExtremums && (
           <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-3 shadow-md space-y-2.5">
             <div className="flex items-center justify-between pb-2 border-b border-[#1e293b] flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
                 <span className="font-semibold text-slate-100 text-xs tracking-wide">
-                  PANEL 4 — EXTREMUMS ENGINE &amp; CHANDELIER BASIS
+                  PANEL 4 — EXTREMUMS ENGINE &amp; NOISE REDUCTION
                 </span>
-                <span className="text-cyan-400 text-[11px] font-mono">
-                  {config.useCloseForExtremums ? 'Close Extremums (Wicks Ignored)' : 'High/Low Extremums (Wicks Included)'}
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded ${
+                  config.useCloseForExtremums
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {config.useCloseForExtremums ? '🛡️ Noise Filter: ON (Wicks Ignored)' : '⚠ Noise Filter: OFF (Wicks Included)'}
                 </span>
+
+                {noiseStats && (
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded border border-slate-800">
+                    Wick Noise: <strong className="text-cyan-300">{noiseStats.totalNoisePoints.toFixed(1)} pts</strong> ({noiseStats.noiseReductionPercent.toFixed(1)}% of bar range)
+                  </span>
+                )}
               </div>
 
               {/* Close Price for Extremums Toggle Switch */}
@@ -341,15 +353,32 @@ export const ChartPanels: React.FC<ChartPanelsProps> = ({
                       setConfig(prev => ({ ...prev, useCloseForExtremums: !prev.useCloseForExtremums }));
                     }
                   }}
-                  className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition-all border ${
+                  className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition-all border cursor-pointer ${
                     config.useCloseForExtremums
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm shadow-cyan-900/30'
+                      ? 'bg-cyan-500/25 text-cyan-200 border-cyan-400 shadow-sm shadow-cyan-900/40'
                       : 'bg-[#131d2e] text-slate-400 border-[#273752] hover:text-slate-200'
                   }`}
                   title="When ON: highest/lowest uses Close instead of wicks. When OFF: wicks are included."
                 >
-                  {config.useCloseForExtremums ? '✓ ON (Close Only · Wicks Ignored)' : '✗ OFF (Wicks Included)'}
+                  {config.useCloseForExtremums ? '🛡️ ON (Close Only · Wicks Ignored)' : '✗ OFF (Wicks Included)'}
                 </button>
+              </div>
+            </div>
+
+            {/* Pipeline Flow Callout */}
+            <div className="bg-[#0b101b] border border-[#1d283a] rounded-lg px-3 py-1.5 flex items-center justify-between text-[11px] font-mono text-slate-300 flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <span className="text-slate-500 font-semibold">PIPELINE FLOW:</span>
+                <span className="text-sky-300">candle</span>
+                <span className="text-slate-600">➔</span>
+                <span className="text-indigo-300">HEIKIN_ASHI</span>
+                <span className="text-slate-600">➔</span>
+                <span className="text-cyan-300 font-bold">Extremums (Noise Filter)</span>
+                <span className="text-slate-600">➔</span>
+                <span className="text-amber-300">chandelier exit</span>
+              </div>
+              <div className="text-[10px] text-slate-400 italic">
+                “When looking for the highest/lowest price, look only at where candles closed, not how far their wicks went.”
               </div>
             </div>
 
