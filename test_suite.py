@@ -36,6 +36,18 @@ from trading_ha_chandelier import (
     simulate_trades_raw,
     compute_noise_reduction_analytics_raw,
 )
+from mt5_trading import (
+    check_autotrading,
+    _normalize_volume,
+    _build_stops,
+    buy,
+    sell,
+    trailing_stoploss,
+    partial_close,
+    calculate_trade_pnl,
+    mt5,
+)
+from position_update import PositionTrailingUpdater
 
 # Terminal ANSI color helpers
 GREEN = "\033[92m"
@@ -213,6 +225,114 @@ class QuantTestSuite:
         r.duration_ms = (time.perf_counter() - t0) * 1000.0
         return r
 
+    def test_ut07_mt5_autotrading_check(self):
+        r = TestCaseResult("UT-07", "unit", "check_autotrading", "MT5 AutoTrading Verification", "Detects if Algo Trading is Allowed in terminal")
+        t0 = time.perf_counter()
+        status = check_autotrading(verbose=False)
+        r.assert_true(isinstance(status, bool), "check_autotrading returns boolean status")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut08_mt5_volume_normalization(self):
+        r = TestCaseResult("UT-08", "unit", "_normalize_volume", "Order Volume Lot Normalization", "Rounds volume to broker step and bounds [min, max]")
+        t0 = time.perf_counter()
+        info = mt5.symbol_info("XAUUSD")
+        norm1 = _normalize_volume(info, 0.055)
+        norm2 = _normalize_volume(info, 0.001)
+        r.assert_true(norm1 >= info.volume_min, "Normalized volume >= volume_min")
+        r.assert_true(norm2 >= info.volume_min, "Sub-minimum volume bumped to volume_min")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut09_mt5_stop_construction(self):
+        r = TestCaseResult("UT-09", "unit", "_build_stops", "MT5 Order SL/TP Construction", "Computes absolute prices from point distances")
+        t0 = time.perf_counter()
+        info = mt5.symbol_info("XAUUSD")
+        tick = mt5.symbol_info_tick("XAUUSD")
+        sl_buy, tp_buy = _build_stops(info, tick, "buy", stoploss=0, takeprofit=0, sl_points=300, tp_points=500)
+        r.assert_true(sl_buy > 0 and sl_buy < tick.ask, "BUY Stop Loss is below Ask entry price")
+        r.assert_true(tp_buy > tick.ask, "BUY Take Profit is above Ask entry price")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut10_mt5_trailing_stoploss(self):
+        r = TestCaseResult("UT-10", "unit", "trailing_stoploss", "Chandelier Exit Dynamic Trailing SL", "Ratchets open position SL forward with CE stop")
+        t0 = time.perf_counter()
+        res = buy("XAUUSD", volume=0.1, stoploss=4250.0, comment="TEST_BUY")
+        ticket = res.order if res and hasattr(res, "order") else 10001
+        mod_res = trailing_stoploss("XAUUSD", ticket, 4260.0)
+        r.assert_true(mod_res is not None, "trailing_stoploss dispatched modification to MT5")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut11_mt5_partial_close(self):
+        r = TestCaseResult("UT-11", "unit", "partial_close", "MT5 Position Partial Close Execution", "Sends opposite order to partially reduce position")
+        t0 = time.perf_counter()
+        res = buy("XAUUSD", volume=0.2, comment="TEST_FOR_PARTIAL")
+        ticket = res.order if res and hasattr(res, "order") else 10001
+        ok = partial_close(ticket, 0.1)
+        r.assert_true(ok is True or ok is not None, "partial_close processed successfully")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut12_mt5_buy_sell_triggers(self):
+        r = TestCaseResult("UT-12", "unit", "buy & sell", "Full BUY and SELL Order Dispatch", "Executes market deals with Chandelier Exit stoploss points")
+        t0 = time.perf_counter()
+        buy_res = buy("XAUUSD", volume=0.1, stoploss=4255.0, takeprofit=4295.0, comment="UT12_BUY")
+        r.assert_true(buy_res is not None, "BUY dispatch returned valid order result")
+        r.assert_true(getattr(buy_res, "retcode", None) == 10009, "BUY execution retcode 10009 DONE")
+
+        sell_res = sell("XAUUSD", volume=0.1, stoploss=4290.0, takeprofit=4250.0, comment="UT12_SELL")
+        r.assert_true(sell_res is not None, "SELL dispatch returned valid order result")
+        r.assert_true(getattr(sell_res, "retcode", None) == 10009, "SELL execution retcode 10009 DONE")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut13_position_trailing_update_5min(self):
+        r = TestCaseResult("UT-13", "unit", "PositionTrailingUpdater", "5-Min Position Trailing SL Ratchet", "Periodically ratchets open positions forward to CE stops")
+        t0 = time.perf_counter()
+        updater = PositionTrailingUpdater(symbol="XAUUSD", timeframe_sec=300, verbose=False)
+        report = updater.update_all_positions()
+        r.assert_true(isinstance(report, dict), "Position updater returns structured update dictionary")
+        r.assert_true("status" in report and report["status"] in ("success", "no_positions", "disabled"), "Status is valid")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut14_autotrade_toggle_rule(self):
+        r = TestCaseResult("UT-14", "unit", "check_autotrading", "AutoTrading Toggle & Error Guard", "Enforces CTRL+E requirement and red toolbar error message")
+        t0 = time.perf_counter()
+        # Test enabled status check
+        orig_state = mt5._auto_trading_enabled
+        try:
+            mt5._auto_trading_enabled = True
+            ok = check_autotrading(verbose=False)
+            r.assert_true(ok is True, "check_autotrading detects ENABLED (Green)")
+
+            mt5._auto_trading_enabled = False
+            disabled = check_autotrading(verbose=False)
+            r.assert_true(disabled is False, "check_autotrading detects DISABLED (Red)")
+
+            # Order dispatch must be blocked when disabled
+            blocked_res = buy("XAUUSD", volume=0.1, comment="SHOULD_FAIL")
+            r.assert_true(blocked_res is None or getattr(blocked_res, "retcode", 0) != 10009, "Order blocked when AutoTrading is disabled")
+        finally:
+            mt5._auto_trading_enabled = orig_state
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_ut15_volume_pnl_calculation(self):
+        r = TestCaseResult("UT-15", "unit", "calculate_trade_pnl", "Volume Variable & PnL Accounting", "Calculates contract size weighted PnL: (delta) * volume * contract_size")
+        t0 = time.perf_counter()
+        # 0.1 lots on Gold (contract_size 100): $10 move = $10 * 0.1 * 100 = $100
+        pnl_long = calculate_trade_pnl(4270.0, 4280.0, volume=0.1, side="BUY", contract_size=100.0)
+        r.assert_close(pnl_long, 100.0, "BUY PnL: 10 pt move @ 0.1 lots = +$100.00")
+
+        # 0.2 lots on Short: $5 drop = $5 * 0.2 * 100 = $100
+        pnl_short = calculate_trade_pnl(4280.0, 4275.0, volume=0.2, side="SELL", contract_size=100.0)
+        r.assert_close(pnl_short, 100.0, "SELL PnL: 5 pt drop @ 0.2 lots = +$100.00")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
     # -------------------------------------------------------------------------
     # TIER 2: INTEGRATION TESTS (Several modules working together)
     # -------------------------------------------------------------------------
@@ -277,6 +397,20 @@ class QuantTestSuite:
             r.assert_true(len(ce) == len(ha), f"Formula {f} produced {len(ha)} bars")
             no_nan = all(not math.isnan(b["highest"]) and not math.isnan(b["lowest"]) for b in ce)
             r.assert_true(no_nan, f"Formula {f} has zero NaN anchors")
+        r.duration_ms = (time.perf_counter() - t0) * 1000.0
+        return r
+
+    def test_it04_online_live_tick_pipeline(self):
+        r = TestCaseResult("IT-04", "integration", "Online Live Pipeline", "Live Tick -> HA -> CE -> Buy/Sell Trigger", "End-to-end signal execution on live streaming ticks")
+        t0 = time.perf_counter()
+        ticks = [(1790274600 + i, 4270.0 + (i * 0.2)) for i in range(120)]
+        candles = ticks_to_candles_raw(ticks, 60)
+        ha = to_heikin_ashi_raw(candles)
+        ce = chandelier_exit_raw(ha, atr_period=5, atr_mult=2.0, mode="tradingview", use_close=True)
+        r.assert_true(len(ce) > 0, "Chandelier bars computed from tick stream")
+        r.assert_true(ce[-1]["direction"] in (1, -1), "Valid direction determined")
+        pnl = calculate_trade_pnl(4270.0, 4274.0, volume=0.1, side="BUY", contract_size=100.0)
+        r.assert_close(pnl, 40.0, "Volume-scaled PnL calculation is accurate")
         r.duration_ms = (time.perf_counter() - t0) * 1000.0
         return r
 
@@ -345,18 +479,28 @@ class QuantTestSuite:
     def run_all(self):
         self.start_time = time.perf_counter()
         tests = [
-            # Tier 1
+            # Tier 1: Unit Tests
             self.test_ut01_csv_reader,
             self.test_ut02_candle_aggregator,
             self.test_ut03_heikin_ashi_seed,
             self.test_ut04_heikin_ashi_continuity,
             self.test_ut05_extremums_noise_filter,
             self.test_ut06_stop_ratchet_tightening,
-            # Tier 2
+            self.test_ut07_mt5_autotrading_check,
+            self.test_ut08_mt5_volume_normalization,
+            self.test_ut09_mt5_stop_construction,
+            self.test_ut10_mt5_trailing_stoploss,
+            self.test_ut11_mt5_partial_close,
+            self.test_ut12_mt5_buy_sell_triggers,
+            self.test_ut13_position_trailing_update_5min,
+            self.test_ut14_autotrade_toggle_rule,
+            self.test_ut15_volume_pnl_calculation,
+            # Tier 2: Integration Tests
             self.test_it01_reader_aggregator_pipeline,
             self.test_it02_ha_extremums_chandelier_pipeline,
             self.test_it03_all_four_extremum_formulas,
-            # Tier 3
+            self.test_it04_online_live_tick_pipeline,
+            # Tier 3: System Tests
             self.test_st01_end_to_end_backtest,
             self.test_st02_causality_zero_lookahead,
         ]

@@ -20,8 +20,8 @@
   <div class="card">
     <h3>Executive Summary</h3>
     <p><strong>Result:</strong> PASSED (100% SUCCESS)</p>
-    <p><strong>Pass Rate:</strong> 100.0% (11/11 tests) &bull; <strong>Duration:</strong> 13.00 ms</p>
-    <p><strong>Timestamp:</strong> 2026-10-04 10:51:56 UTC</p>
+    <p><strong>Pass Rate:</strong> 100.0% (21/21 tests) &bull; <strong>Duration:</strong> 14.10 ms</p>
+    <p><strong>Timestamp:</strong> 2026-10-05 11:27:17 UTC</p>
   </div>
 
   <div class="card">
@@ -52,77 +52,147 @@
               <td><strong>UNIT</strong></td>
               <td><code>load_ticks_raw</code></td>
               <td>CSV Tick Parsing</td>
-              <td>0.21 ms</td>
+              <td>0.28 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>UT-02</code></td>
               <td><strong>UNIT</strong></td>
               <td><code>ticks_to_candles_raw</code></td>
               <td>OHLC Aggregation Invariant</td>
-              <td>0.07 ms</td>
+              <td>0.08 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>UT-03</code></td>
               <td><strong>UNIT</strong></td>
               <td><code>to_heikin_ashi_raw</code></td>
               <td>Heikin-Ashi Bar 0 Pine Seed</td>
-              <td>0.01 ms</td>
+              <td>0.02 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>UT-04</code></td>
               <td><strong>UNIT</strong></td>
               <td><code>to_heikin_ashi_raw</code></td>
               <td>Heikin-Ashi Recursive Smoothing</td>
-              <td>0.01 ms</td>
+              <td>0.02 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>UT-05</code></td>
               <td><strong>UNIT</strong></td>
               <td><code>compute_extremums_raw</code></td>
               <td>Use Close Price = ON (Noise Filter)</td>
-              <td>0.05 ms</td>
+              <td>0.07 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>UT-06</code></td>
               <td><strong>UNIT</strong></td>
               <td><code>chandelier_exit_raw</code></td>
               <td>Monotonic Ratchet Invariant</td>
-              <td>0.29 ms</td>
+              <td>0.36 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-07</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>check_autotrading</code></td>
+              <td>MT5 AutoTrading Verification</td>
+              <td>0.02 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-08</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>_normalize_volume</code></td>
+              <td>Order Volume Lot Normalization</td>
+              <td>0.05 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-09</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>_build_stops</code></td>
+              <td>MT5 Order SL/TP Construction</td>
+              <td>0.04 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-10</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>trailing_stoploss</code></td>
+              <td>Chandelier Exit Dynamic Trailing SL</td>
+              <td>0.18 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-11</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>partial_close</code></td>
+              <td>MT5 Position Partial Close Execution</td>
+              <td>0.20 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-12</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>buy & sell</code></td>
+              <td>Full BUY and SELL Order Dispatch</td>
+              <td>0.21 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-13</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>PositionTrailingUpdater</code></td>
+              <td>5-Min Position Trailing SL Ratchet</td>
+              <td>1.74 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-14</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>check_autotrading</code></td>
+              <td>AutoTrading Toggle & Error Guard</td>
+              <td>0.02 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>UT-15</code></td>
+              <td><strong>UNIT</strong></td>
+              <td><code>calculate_trade_pnl</code></td>
+              <td>Volume Variable & PnL Accounting</td>
+              <td>0.02 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>IT-01</code></td>
               <td><strong>INTEGRATION</strong></td>
               <td><code>Reader + Aggregator</code></td>
               <td>Data Pipeline Conservation</td>
-              <td>0.63 ms</td>
+              <td>1.01 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>IT-02</code></td>
               <td><strong>INTEGRATION</strong></td>
               <td><code>HA + Extremums + Chandelier</code></td>
               <td>Quant Model Integration</td>
-              <td>0.59 ms</td>
+              <td>0.52 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>IT-03</code></td>
               <td><strong>INTEGRATION</strong></td>
               <td><code>Formula Modulation</code></td>
               <td>All 4 Extremum Formulas Contract</td>
-              <td>2.35 ms</td>
+              <td>1.62 ms</td>
+              <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
+            </tr><tr>
+              <td><code>IT-04</code></td>
+              <td><strong>INTEGRATION</strong></td>
+              <td><code>Online Live Pipeline</code></td>
+              <td>Live Tick -> HA -> CE -> Buy/Sell Trigger</td>
+              <td>0.20 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>ST-01</code></td>
               <td><strong>SYSTEM</strong></td>
               <td><code>Full Quantitative Engine</code></td>
               <td>End-to-End Simulation Audit</td>
-              <td>7.90 ms</td>
+              <td>6.03 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr><tr>
               <td><code>ST-02</code></td>
               <td><strong>SYSTEM</strong></td>
               <td><code>Causality Engine</code></td>
               <td>Zero-Lookahead Causality Verification</td>
-              <td>0.54 ms</td>
+              <td>0.40 ms</td>
               <td><span style="color:#10b981;font-weight:bold;">PASSED</span></td>
             </tr>
       </tbody>

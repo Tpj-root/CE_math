@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-10-04T10:51:56.425073",
-  "total": 11,
-  "passed": 11,
+  "timestamp": "2026-10-05T11:27:17.751081",
+  "total": 21,
+  "passed": 21,
   "failed": 0,
   "pass_rate": 100.0,
-  "duration_ms": 13.003283999978521,
+  "duration_ms": 14.101902001129929,
   "tests": [
     {
       "id": "UT-01",
@@ -12,7 +12,7 @@
       "target": "load_ticks_raw",
       "name": "CSV Tick Parsing",
       "passed": true,
-      "duration_ms": 0.20775500001946057,
+      "duration_ms": 0.2804369996738387,
       "assertions": [
         {
           "msg": "Parsed exactly 3 records",
@@ -47,7 +47,7 @@
       "target": "ticks_to_candles_raw",
       "name": "OHLC Aggregation Invariant",
       "passed": true,
-      "duration_ms": 0.06898499987073592,
+      "duration_ms": 0.07670800005143974,
       "assertions": [
         {
           "msg": "Creates 2 candle buckets",
@@ -100,7 +100,7 @@
       "target": "to_heikin_ashi_raw",
       "name": "Heikin-Ashi Bar 0 Pine Seed",
       "passed": true,
-      "duration_ms": 0.01330499981122557,
+      "duration_ms": 0.02040999970631674,
       "assertions": [
         {
           "msg": "Transformed 1 HA candle",
@@ -141,7 +141,7 @@
       "target": "to_heikin_ashi_raw",
       "name": "Heikin-Ashi Recursive Smoothing",
       "passed": true,
-      "duration_ms": 0.010515999974813894,
+      "duration_ms": 0.018450000425218605,
       "assertions": [
         {
           "msg": "haOpen[1] matches recursive formula = 101.5 (expected ~101.5, got 101.5)",
@@ -164,7 +164,7 @@
       "target": "compute_extremums_raw",
       "name": "Use Close Price = ON (Noise Filter)",
       "passed": true,
-      "duration_ms": 0.04631299998436589,
+      "duration_ms": 0.07282200022018515,
       "assertions": [
         {
           "msg": "Close ON upper anchor is Close (101.0) (expected ~101.0, got 101.0)",
@@ -193,7 +193,7 @@
       "target": "chandelier_exit_raw",
       "name": "Monotonic Ratchet Invariant",
       "passed": true,
-      "duration_ms": 0.2855369998542301,
+      "duration_ms": 0.35898799978895113,
       "assertions": [
         {
           "msg": "Long stop monotonically increases or stays flat during uptrend",
@@ -205,12 +205,219 @@
       "error": null
     },
     {
+      "id": "UT-07",
+      "tier": "unit",
+      "target": "check_autotrading",
+      "name": "MT5 AutoTrading Verification",
+      "passed": true,
+      "duration_ms": 0.024123999537550844,
+      "assertions": [
+        {
+          "msg": "check_autotrading returns boolean status",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-08",
+      "tier": "unit",
+      "target": "_normalize_volume",
+      "name": "Order Volume Lot Normalization",
+      "passed": true,
+      "duration_ms": 0.04500800059759058,
+      "assertions": [
+        {
+          "msg": "Normalized volume >= volume_min",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Sub-minimum volume bumped to volume_min",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-09",
+      "tier": "unit",
+      "target": "_build_stops",
+      "name": "MT5 Order SL/TP Construction",
+      "passed": true,
+      "duration_ms": 0.04396000076667406,
+      "assertions": [
+        {
+          "msg": "BUY Stop Loss is below Ask entry price",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "BUY Take Profit is above Ask entry price",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-10",
+      "tier": "unit",
+      "target": "trailing_stoploss",
+      "name": "Chandelier Exit Dynamic Trailing SL",
+      "passed": true,
+      "duration_ms": 0.18174300021200906,
+      "assertions": [
+        {
+          "msg": "trailing_stoploss dispatched modification to MT5",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-11",
+      "tier": "unit",
+      "target": "partial_close",
+      "name": "MT5 Position Partial Close Execution",
+      "passed": true,
+      "duration_ms": 0.20323199896665756,
+      "assertions": [
+        {
+          "msg": "partial_close processed successfully",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-12",
+      "tier": "unit",
+      "target": "buy & sell",
+      "name": "Full BUY and SELL Order Dispatch",
+      "passed": true,
+      "duration_ms": 0.20767299974977504,
+      "assertions": [
+        {
+          "msg": "BUY dispatch returned valid order result",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "BUY execution retcode 10009 DONE",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "SELL dispatch returned valid order result",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "SELL execution retcode 10009 DONE",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-13",
+      "tier": "unit",
+      "target": "PositionTrailingUpdater",
+      "name": "5-Min Position Trailing SL Ratchet",
+      "passed": true,
+      "duration_ms": 1.7383510003128322,
+      "assertions": [
+        {
+          "msg": "Position updater returns structured update dictionary",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Status is valid",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-14",
+      "tier": "unit",
+      "target": "check_autotrading",
+      "name": "AutoTrading Toggle & Error Guard",
+      "passed": true,
+      "duration_ms": 0.023643999156774953,
+      "assertions": [
+        {
+          "msg": "check_autotrading detects ENABLED (Green)",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "check_autotrading detects DISABLED (Red)",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Order blocked when AutoTrading is disabled",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "UT-15",
+      "tier": "unit",
+      "target": "calculate_trade_pnl",
+      "name": "Volume Variable & PnL Accounting",
+      "passed": true,
+      "duration_ms": 0.017055001080734655,
+      "assertions": [
+        {
+          "msg": "BUY PnL: 10 pt move @ 0.1 lots = +$100.00 (expected ~100.0, got 100.0)",
+          "passed": true,
+          "expected": 100.0,
+          "actual": 100.0
+        },
+        {
+          "msg": "SELL PnL: 5 pt drop @ 0.2 lots = +$100.00 (expected ~100.0, got 100.0)",
+          "passed": true,
+          "expected": 100.0,
+          "actual": 100.0
+        }
+      ],
+      "error": null
+    },
+    {
       "id": "IT-01",
       "tier": "integration",
       "target": "Reader + Aggregator",
       "name": "Data Pipeline Conservation",
       "passed": true,
-      "duration_ms": 0.6257250001908687,
+      "duration_ms": 1.0110810017067706,
       "assertions": [
         {
           "msg": "180 ticks at 60s bucket form 3 candles",
@@ -233,7 +440,7 @@
       "target": "HA + Extremums + Chandelier",
       "name": "Quant Model Integration",
       "passed": true,
-      "duration_ms": 0.5912169999646721,
+      "duration_ms": 0.519630000781035,
       "assertions": [
         {
           "msg": "Chandelier output matches candle count",
@@ -700,7 +907,7 @@
       "target": "Formula Modulation",
       "name": "All 4 Extremum Formulas Contract",
       "passed": true,
-      "duration_ms": 2.3536520000106975,
+      "duration_ms": 1.6248030005954206,
       "assertions": [
         {
           "msg": "Formula close produced 30 bars",
@@ -754,12 +961,41 @@
       "error": null
     },
     {
+      "id": "IT-04",
+      "tier": "integration",
+      "target": "Online Live Pipeline",
+      "name": "Live Tick -> HA -> CE -> Buy/Sell Trigger",
+      "passed": true,
+      "duration_ms": 0.1953310002136277,
+      "assertions": [
+        {
+          "msg": "Chandelier bars computed from tick stream",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Valid direction determined",
+          "passed": true,
+          "expected": null,
+          "actual": null
+        },
+        {
+          "msg": "Volume-scaled PnL calculation is accurate (expected ~40.0, got 40.0)",
+          "passed": true,
+          "expected": 40.0,
+          "actual": 40.0
+        }
+      ],
+      "error": null
+    },
+    {
       "id": "ST-01",
       "tier": "system",
       "target": "Full Quantitative Engine",
       "name": "End-to-End Simulation Audit",
       "passed": true,
-      "duration_ms": 7.896894999930737,
+      "duration_ms": 6.033867999576614,
       "assertions": [
         {
           "msg": "Loaded 3600 ticks from frxXAUUSD_1790274600.csv",
@@ -794,7 +1030,7 @@
       "target": "Causality Engine",
       "name": "Zero-Lookahead Causality Verification",
       "passed": true,
-      "duration_ms": 0.5385160000059841,
+      "duration_ms": 0.3976079988206038,
       "assertions": [
         {
           "msg": "Strict causality proven: historical bars identical regardless of future additions",

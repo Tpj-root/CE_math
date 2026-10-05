@@ -9,7 +9,9 @@ import {
   StrategyConfig,
   ChandelierBar,
   Trade,
-  BacktestMetrics
+  BacktestMetrics,
+  DataMode,
+  AlgoTradingState
 } from './types/trading';
 import {
   generateRealisticTicks,
@@ -31,16 +33,51 @@ import { TradingViewDiffExplainer } from './components/TradingViewDiffExplainer'
 import { TradeLogTable } from './components/TradeLogTable';
 import { TestSuiteView } from './components/TestSuiteView';
 import { PythonLibraryView } from './components/PythonLibraryView';
+import { OnlineTradingTerminal } from './components/OnlineTradingTerminal';
 import { GuideModal } from './components/GuideModal';
 import { FULL_PYTHON_SCRIPT } from './utils/fullPythonScript';
 
 export default function App() {
   // Navigation & UI state
   const [activeTab, setActiveTab] = useState<ActiveTab>('charts');
+  const [dataMode, setDataMode] = useState<DataMode>('offline_csv');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [guideOpen, setGuideOpen] = useState<boolean>(false);
   const [selectedCandleIndex, setSelectedCandleIndex] = useState<number>(0);
   const [currentDatasetName, setCurrentDatasetName] = useState<string>('official');
+
+  // Algo Trading (AutoTrade) State with Green / Red indicator & CTRL+E
+  const [algoTrading, setAlgoTrading] = useState<AlgoTradingState>({
+    enabled: true,
+    statusText: 'Algo Trading: ENABLED',
+    toolbarColor: 'green',
+    lastUpdated: Date.now(),
+  });
+
+  const handleToggleAlgoTrading = useCallback(() => {
+    setAlgoTrading(prev => {
+      const nextEnabled = !prev.enabled;
+      return {
+        enabled: nextEnabled,
+        statusText: nextEnabled ? 'Algo Trading: ENABLED' : 'Algo Trading: DISABLED',
+        toolbarColor: nextEnabled ? 'green' : 'red',
+        errorMessage: nextEnabled ? undefined : 'Please enable Algo Trading or (CTRL + E)',
+        lastUpdated: Date.now(),
+      };
+    });
+  }, []);
+
+  // Global Keyboard Shortcut: CTRL + E to toggle Algo Trading
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        handleToggleAlgoTrading();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleToggleAlgoTrading]);
 
   // Strategy Configuration
   const [config, setConfig] = useState<StrategyConfig>({
@@ -273,6 +310,10 @@ export default function App() {
       <TopNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        dataMode={dataMode}
+        setDataMode={setDataMode}
+        algoTrading={algoTrading}
+        onToggleAlgoTrading={handleToggleAlgoTrading}
         onExportCsv={handleExportDataCsv}
         onDownloadPython={handleDownloadPython}
         onOpenGuide={() => setGuideOpen(true)}
@@ -391,6 +432,17 @@ export default function App() {
                 setSelectedCandleIndex(idx);
                 setActiveTab('inspector');
               }}
+            />
+          )}
+
+          {activeTab === 'online_terminal' && (
+            <OnlineTradingTerminal
+              config={config}
+              setConfig={setConfig}
+              algoTrading={algoTrading}
+              setAlgoTrading={setAlgoTrading}
+              onToggleAlgoTrading={handleToggleAlgoTrading}
+              onNavigateToTab={setActiveTab}
             />
           )}
 

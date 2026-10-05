@@ -2,6 +2,12 @@
  * Exports the complete, production-ready trading_ha_chandelier.py library
  * with all 4 Extremum Formulas and 6-Panel GUI.
  */
+export {
+  FULL_MT5_TRADING_SCRIPT,
+  FULL_POSITION_UPDATE_SCRIPT,
+  FULL_MT5_LIVE_TRADER_SCRIPT,
+} from './mt5PythonScripts';
+
 export const FULL_PYTHON_SCRIPT = `#!/usr/bin/env python3
 """
 ================================================================================

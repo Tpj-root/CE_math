@@ -1,40 +1,76 @@
 import React, { useState } from 'react';
-import { Download, Copy, Check, Terminal, Code2, Play, BookOpen, ShieldCheck, Sparkles, Activity } from 'lucide-react';
-import { FULL_PYTHON_SCRIPT, FULL_TEST_SUITE_SCRIPT } from '../utils/fullPythonScript';
+import { Download, Copy, Check, Terminal, Code2, Play, BookOpen, ShieldCheck, Sparkles, Activity, Clock, Zap } from 'lucide-react';
+import {
+  FULL_PYTHON_SCRIPT,
+  FULL_TEST_SUITE_SCRIPT,
+  FULL_MT5_TRADING_SCRIPT,
+  FULL_MT5_LIVE_TRADER_SCRIPT,
+  FULL_POSITION_UPDATE_SCRIPT,
+} from '../utils/fullPythonScript';
 
 interface PythonLibraryViewProps {
   onDownloadPython: () => void;
 }
 
+type FileKey = 'mt5_trading' | 'mt5_live' | 'position_update' | 'engine' | 'testing';
+
 export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
   onDownloadPython,
 }) => {
-  const [activeFile, setActiveFile] = useState<'engine' | 'testing'>('engine');
+  const [activeFile, setActiveFile] = useState<FileKey>('mt5_trading');
   const [copied, setCopied] = useState(false);
 
-  const activeCode = activeFile === 'engine' ? FULL_PYTHON_SCRIPT : FULL_TEST_SUITE_SCRIPT;
-  const activeFileName = activeFile === 'engine' ? 'trading_ha_chandelier.py' : 'test_suite.py';
+  const fileMap: Record<FileKey, { name: string; code: string; desc: string; icon: any }> = {
+    mt5_trading: {
+      name: 'mt5_trading.py',
+      code: FULL_MT5_TRADING_SCRIPT,
+      desc: 'MT5 Online Library: check_autotrading(), buy(), sell(), trailing_stoploss(), partial_close(), and volume sizing.',
+      icon: Zap,
+    },
+    position_update: {
+      name: 'position_update.py',
+      code: FULL_POSITION_UPDATE_SCRIPT,
+      desc: '5-Minute Position Updater: Periodically ratchets open position stoploss forward to Chandelier Exit trailing levels.',
+      icon: Clock,
+    },
+    mt5_live: {
+      name: 'mt5_live_trader.py',
+      code: FULL_MT5_LIVE_TRADER_SCRIPT,
+      desc: 'Live Automated MT5 Trader with Browser GUI: Tick ➔ Candle ➔ Heikin-Ashi ➔ Extremums ➔ Chandelier Trailing Stop.',
+      icon: Activity,
+    },
+    engine: {
+      name: 'trading_ha_chandelier.py',
+      code: FULL_PYTHON_SCRIPT,
+      desc: 'Core Quant Pipeline: All 4 Extremum formulas, Wilder RMA ATR, Pine Script calibration, and order simulator.',
+      icon: Code2,
+    },
+    testing: {
+      name: 'test_suite.py',
+      code: FULL_TEST_SUITE_SCRIPT,
+      desc: 'Three-Tier Testing Suite: Unit Tests (UT-01..15), Integration Tests, System Tests, and CSV Output Generator.',
+      icon: ShieldCheck,
+    },
+  };
+
+  const current = fileMap[activeFile];
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(activeCode);
+    navigator.clipboard.writeText(current.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    if (activeFile === 'engine') {
-      onDownloadPython();
-    } else {
-      const blob = new Blob([FULL_TEST_SUITE_SCRIPT], { type: 'text/x-python;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'test_suite.py';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
+    const blob = new Blob([current.code], { type: 'text/x-python;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = current.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -46,43 +82,13 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
             <Code2 className="w-5 h-5 text-emerald-400" />
             <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
               Production Python Suite:
-              <span className="font-mono text-cyan-300">{activeFileName}</span>
+              <span className="font-mono text-cyan-300">{current.name}</span>
             </h2>
           </div>
-          <p className="text-slate-400 text-xs">
-            {activeFile === 'engine'
-              ? 'Complete quantitative engine with 4 Extremum formulas, Pine Script ratchet corrections, 6-panel GUI server, and zero-lookahead order simulator.'
-              : 'Production Three-Tier Software Testing Library: Unit Tests, Integration Tests, System Tests, CSV Function Output Generator, and Audit Reports.'}
-          </p>
+          <p className="text-slate-400 text-xs">{current.desc}</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* File Switcher */}
-          <div className="flex items-center bg-[#131d2e] border border-[#273852] rounded-lg p-1 text-xs font-mono">
-            <button
-              onClick={() => setActiveFile('engine')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all ${
-                activeFile === 'engine'
-                  ? 'bg-emerald-400 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              <span>trading_ha_chandelier.py</span>
-            </button>
-            <button
-              onClick={() => setActiveFile('testing')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all ${
-                activeFile === 'testing'
-                  ? 'bg-cyan-400 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>test_suite.py (Testing Library)</span>
-            </button>
-          </div>
-
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-2 bg-[#131d2e] hover:bg-[#1c2a3f] border border-[#273852] rounded-lg text-slate-200 transition-colors cursor-pointer"
@@ -96,50 +102,72 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
           >
             <Download className="w-4 h-4" />
-            <span>Download {activeFileName}</span>
+            <span>Download {current.name}</span>
           </button>
         </div>
+      </div>
+
+      {/* File Switcher Tabs */}
+      <div className="flex items-center bg-[#070b12] border border-[#1e293b] rounded-xl p-1.5 overflow-x-auto gap-1">
+        {(Object.keys(fileMap) as FileKey[]).map(key => {
+          const item = fileMap[key];
+          const Icon = item.icon;
+          const isActive = activeFile === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveFile(key)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-sky-500/20 text-sky-300 border border-sky-400/60 font-bold shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#131d2e]'
+              }`}
+            >
+              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-sky-300' : 'text-slate-400'}`} />
+              <span>{item.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Terminal Command Quickstart Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs">
-            <Terminal className="w-4 h-4" />
-            <span>1. Run Three-Tier Software Testing</span>
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span>1. Launch MT5 Live Trader Bot &amp; GUI</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Executes Unit Tests, Integration Tests, and System Tests on your CSV:
+            Streams live MT5 ticks, executes buy/sell deals, and serves local web GUI:
           </p>
           <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-sky-300">
-            python3 test_suite.py --csv frxXAUUSD_1790274600.csv --report
+            python3 mt5_live_trader.py --gui --symbol XAUUSD
           </div>
         </div>
 
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-cyan-400 font-semibold text-xs">
-            <Sparkles className="w-4 h-4" />
-            <span>2. Generate Discrete Function Outputs</span>
+            <Clock className="w-4 h-4 text-sky-400" />
+            <span>2. 5-Minute Position Trailing SL Updater</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Generates 7 discrete JSON output files for each pipeline function:
+            Continuously ratchets open position stop losses to Chandelier Exit levels:
           </p>
           <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-cyan-300">
-            python3 test_suite.py --generate-output
+            python3 position_update.py --interval 300 --symbol XAUUSD
           </div>
         </div>
 
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
-            <Activity className="w-4 h-4" />
-            <span>3. Save Golden Baseline &amp; Regression</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>3. Three-Tier Software Testing Suite</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Audit future code changes against golden mathematical baseline:
+            Runs 21 Unit, Integration, and System Tests on CSV and generates audit report:
           </p>
-          <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-emerald-300 space-y-1">
-            <div>python3 test_suite.py --baseline save</div>
-            <div>python3 test_suite.py --baseline compare</div>
+          <div className="p-2.5 bg-[#090d14] rounded-lg border border-[#1e293b] font-mono text-[11px] text-emerald-300">
+            python3 test_suite.py --report
           </div>
         </div>
       </div>
@@ -148,13 +176,13 @@ export const PythonLibraryView: React.FC<PythonLibraryViewProps> = ({
       <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl overflow-hidden shadow-sm flex flex-col flex-1">
         <div className="p-3 bg-[#111927] border-b border-[#1e293b] flex items-center justify-between text-xs font-mono text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-200">{activeFileName}</span>
-            <span>({activeCode.split('\n').length} lines, fully typed &amp; tested)</span>
+            <span className="font-bold text-slate-200">{current.name}</span>
+            <span>({current.code.split('\n').length} lines, fully typed &amp; tested)</span>
           </div>
-          <span className="text-emerald-400">Python 3.8+ / Zero Mandatory Dependencies</span>
+          <span className="text-emerald-400">Python 3.8+ / MetaTrader 5 Ready</span>
         </div>
         <div className="p-4 overflow-x-auto flex-1 font-mono text-[11px] text-slate-300 leading-relaxed max-h-[600px] overflow-y-auto bg-[#070b12]">
-          <pre className="select-text">{activeCode}</pre>
+          <pre className="select-text">{current.code}</pre>
         </div>
       </div>
     </div>

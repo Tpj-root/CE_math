@@ -91,6 +91,50 @@ export interface ChandelierBar extends HeikinAshiCandle {
   extremum: ExtremumData;
 }
 
+export type DataMode = 'offline_csv' | 'online_mt5';
+
+export interface MT5Tick {
+  time: number;
+  bid: number;
+  ask: number;
+  spread: number;
+  symbol: string;
+}
+
+export interface MT5Position {
+  ticket: number;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  volume: number;
+  openPrice: number;
+  currentPrice: number;
+  sl: number;
+  tp: number;
+  trailingSl: number;
+  profit: number;
+  profitPercent: number;
+  openTime: number;
+  comment?: string;
+}
+
+export interface VolumeCalculation {
+  mode: 'fixed' | 'risk_percent';
+  fixedLots: number;
+  riskPercent: number;
+  accountBalance: number;
+  calculatedLots: number;
+  slDistancePoints: number;
+  estimatedRiskDollars: number;
+}
+
+export interface AlgoTradingState {
+  enabled: boolean;
+  statusText: string;
+  toolbarColor: 'green' | 'red';
+  errorMessage?: string;
+  lastUpdated: number;
+}
+
 export interface Trade {
   id: number;
   side: 'LONG' | 'SHORT';
